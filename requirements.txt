@@ -1,7 +1,7 @@
 openai-agents>=0.1.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
-playwright>=1.40.0
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-eval_type_backport>=0.2.0
+# playwright>=1.40.0            # png変換を行う場合は必要
+# pytest>=7.0.0                 # pytest実施時は必要
+# pytest-asyncio>=0.21.0        # pytest実施時は必要
+# eval_type_backport>=0.2.0     # Python 3.9 における型アノテーション評価の制限

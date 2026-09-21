@@ -1,12 +1,16 @@
-# Multi-Agent Advertising Banner Generator (BannerAgency)
+# Intentionally Retrofitted BannerAgency
 
 OpenAIのLLMを搭載した複数の専門エージェントを指揮者（Orchestrator）がツールとして順次呼び出し、協調して高品質な広告バナー（**HTML / SVG / 高解像度PNG**）を自動生成するマルチエージェント制作システムです。
+
+* 本システムは、BannerAgencyを実装しつつも、意図的に画像生成AI（T2I）の利用を回避し、既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
 
 ---
 
 ## 1. システム概要とアーキテクチャ
 
-本システムは、論文 **"BannerAgency: Advertising Banner Design with Multimodal LLM Agents"** の設計思想に基づき、画像生成AI（T2I）のテキストレンダリング崩れを回避し、既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
+本システムは、論文 **"BannerAgency: Advertising Banner Design with Multimodal LLM Agents"** の設計思想に基づきつつも、**画像生成AI（T2I）の利用を回避するという特定の環境下**でバナー制作を行うためのマルチエージェントシステムです。
+既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
+Human-in-the-loopとして、人がAIエージェントの動作を監視するだけでなく、自らバナーを修正・制作する機能を設けています。
 
 ```mermaid
 flowchart TD
@@ -57,9 +61,9 @@ flowchart TD
 - **2パス衝突解決ガードレール**:
   ロゴと装飾バッジの重なり防止、縦方向に並ぶテキスト要素（メインコピー、サブコピー、CTA）の物理的な文字被りをレンダラー内部で自動検知・解消。
 - **直近編集ファイルの自動検出 & スマートな `Render`**:
-  出力された HTML や SVG をエディタで直接手動編集した後、対話メニューで `Render` を実行するだけで、**直近で更新されたファイルを自動検出**して即座に PNG プレビューを再生成します。
-- **豊富な内蔵アセット**:
-  セール、テック、オーガニック、ラグジュアリーなど多様な用途に対応した背景（5種）、ロゴ（4種）、装飾バッジ（4種）を標準搭載。
+  出力された HTML や SVG をエディタで直接手動編集した後、対話メニューで `Render` を実行するだけで、**直近で更新されたファイルを自動検出**して即座に PNG プレビューを再生成します。ただし、**デフォルトではrequirements.txt内でplaywrightが有効になっていない**ため、PNGのレンダリングを行いたい場合は有効化して下さい。
+- **本Githubに用意したサンプルアセット**:
+  セール、テック、オーガニック、ラグジュアリーの用途に対応した背景（5種）、ロゴ（4種）、装飾バッジ（4種）を格納しています。
 
 ---
 
@@ -196,3 +200,27 @@ assets/
 pytest
 ```
 アセット読み込み、HTML/SVG生成、Base64 Data URI埋め込み、衝突解消ガードレール、直近編集ファイルの自動検出レンダリングなど全テストのパスを確認できます。
+
+---
+
+## 8. 引用・参考文献
+
+本プロジェクトは以下の論文およびリポジトリの設計思想を参考にしています：
+- **Paper**: [arXiv:2503.11060](https://arxiv.org/abs/2503.11060)
+- **Official Repository**: [sony/BannerAgency](https://github.com/sony/BannerAgency)
+- **Project Page**: [https://banneragency.github.io/](https://banneragency.github.io/)
+
+```bibtex
+@inproceedings{wang2025banneragency,
+  title     = {BannerAgency: Advertising Banner Design with Multimodal LLM Agents},
+  author    = {Wang, Heng and Shimose, Yotaro and Takamatsu, Shingo},
+  booktitle = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year      = {2025}
+}
+```
+
+---
+
+## 9. ライセンス
+
+本プロジェクトは [MIT License](LICENSE) のもとで公開されています。

@@ -1,0 +1,34 @@
+## file
+.DS_Store
+.dockerignore
+.env
+env.yaml
+.python-version
+*.ipynb
+*.local
+pyproject.toml
+pyrefly.toml
+pyrightconfig.json
+AGENTS.md
+docs/*
+artifacts/graph/*
+artifacts/output/*
+
+
+## directory
+.venv/
+.vscode/
+misc/
+gcp/.venv/
+gcp/cache/
+react/node_modules/
+react/dist/
+react/dist-ssr/
+__pycache__/
+.pytest_cache/
+references/
+src/ad_creator.egg-info/
+src/ad_creator_web/data/
+tests/
+*.egg-info
+*.local
