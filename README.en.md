@@ -16,14 +16,14 @@ With a Human-in-the-Loop approach, users can not only monitor the AI agents' ope
 
 ```mermaid
 flowchart TD
-    User([User / Input]) --> Orchestrator[Banner Orchestrator]
+    User(["User / Input"]) --> Orchestrator["Banner Orchestrator"]
 
-    subgraph LLM_Tools [Specialized LLM Agents Invoked as Tools by Orchestrator]
-        Strategist[1. Strategist<br/>Formulate objective, audience, tone/mood, copy requirements]
-        BgDesigner[2. Background Designer<br/>Metadata search / CSS gradient fallback]
-        FrontDesigner[3. Front Designer<br/>Catchphrase creation, logo/decoration selection, initial layout]
-        FrontRefiner[4. Front Refiner<br/>Overlap resolution & bounding box optimization]
-        Developer[5. Developer & Renderer<br/>HTML/SVG construction & Playwright PNG rendering]
+    subgraph LLM_Tools ["Specialized LLM Agents Invoked as Tools by Orchestrator"]
+        Strategist["1. Strategist<br/>Formulate objective, audience, tone/mood, copy requirements"]
+        BgDesigner["2. Background Designer<br/>Metadata search / CSS gradient fallback"]
+        FrontDesigner["3. Front Designer<br/>Catchphrase creation, logo/decoration selection, initial layout"]
+        FrontRefiner["4. Front Refiner<br/>Overlap resolution & bounding box optimization"]
+        Developer["5. Developer & Renderer<br/>HTML/SVG construction & Playwright PNG rendering"]
     end
 
     Orchestrator -->|create_banner_strategy| Strategist
@@ -33,15 +33,15 @@ flowchart TD
     BgDesigner -->|BannerBackgroundSelection| Orchestrator
 
     Orchestrator -->|plan_banner_front| FrontDesigner
-    FrontDesigner -->|BannerForegroundPlan (Draft)| Orchestrator
+    FrontDesigner -->|"BannerForegroundPlan (Draft)"| Orchestrator
 
     Orchestrator -->|refine_banner_front| FrontRefiner
-    FrontRefiner -->|BannerForegroundPlan (Refined)| Orchestrator
+    FrontRefiner -->|"BannerForegroundPlan (Refined)"| Orchestrator
 
     Orchestrator -->|develop_banner| Developer
     Developer -->|BannerDeveloperOutput| Orchestrator
 
-    Orchestrator --> FinalOutput([Final Output: HTML + SVG + PNG + Review Management])
+    Orchestrator --> FinalOutput(["Final Output: HTML + SVG + PNG + Review Management"])
 ```
 
 ### Agent Roles

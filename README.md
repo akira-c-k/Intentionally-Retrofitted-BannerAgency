@@ -16,14 +16,14 @@ Human-in-the-loopとして、人がAIエージェントの動作を監視する�
 
 ```mermaid
 flowchart TD
-    User([ユーザー / 入力]) --> Orchestrator[指揮者: Banner Orchestrator]
+    User(["ユーザー / 入力"]) --> Orchestrator["指揮者: Banner Orchestrator"]
 
-    subgraph LLM_Tools [指揮者がツールとして扱う専門LLMエージェント群]
-        Strategist[1. 企画立案者: Strategist<br/>目的・ターゲット・トーン・コピー要件策定]
-        BgDesigner[2. 背景選択: Background Designer<br/>メタデータ検索 / CSSフォールバック]
-        FrontDesigner[3. コピー & 素材選定: Front Designer<br/>キャッチコピー作成・ロゴ/装飾選定・初期レイアウト]
-        FrontRefiner[4. 配置調整: Front Refiner<br/>要素重なり解消・バウンディングボックス最適化]
-        Developer[5. 開発 & レンダラー: Developer<br/>HTML/SVG構築 & Playwright PNGレンダリング]
+    subgraph LLM_Tools ["指揮者がツールとして扱う専門LLMエージェント群"]
+        Strategist["1. 企画立案者: Strategist<br/>目的・ターゲット・トーン・コピー要件策定"]
+        BgDesigner["2. 背景選択: Background Designer<br/>メタデータ検索 / CSSフォールバック"]
+        FrontDesigner["3. コピー & 素材選定: Front Designer<br/>キャッチコピー作成・ロゴ/装飾選定・初期レイアウト"]
+        FrontRefiner["4. 配置調整: Front Refiner<br/>要素重なり解消・バウンディングボックス最適化"]
+        Developer["5. 開発 & レンダラー: Developer<br/>HTML/SVG構築 & Playwright PNGレンダリング"]
     end
 
     Orchestrator -->|create_banner_strategy| Strategist
@@ -33,15 +33,15 @@ flowchart TD
     BgDesigner -->|BannerBackgroundSelection| Orchestrator
 
     Orchestrator -->|plan_banner_front| FrontDesigner
-    FrontDesigner -->|BannerForegroundPlan (Draft)| Orchestrator
+    FrontDesigner -->|"BannerForegroundPlan (Draft)"| Orchestrator
 
     Orchestrator -->|refine_banner_front| FrontRefiner
-    FrontRefiner -->|BannerForegroundPlan (Refined)| Orchestrator
+    FrontRefiner -->|"BannerForegroundPlan (Refined)"| Orchestrator
 
     Orchestrator -->|develop_banner| Developer
     Developer -->|BannerDeveloperOutput| Orchestrator
 
-    Orchestrator --> FinalOutput([最終出力: HTML + SVG + PNG + レビュー管理])
+    Orchestrator --> FinalOutput(["最終出力: HTML + SVG + PNG + レビュー管理"])
 ```
 
 ### 各エージェントの役割
