@@ -8,6 +8,7 @@ import json
 import logging
 import mimetypes
 import re
+import shutil
 import threading
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Optional, Sequence, Union
@@ -678,7 +679,7 @@ def render_existing_banner_html_file(
     enable_playwright: bool = True,
     auto_detect_latest: bool = True,
 ) -> Dict[str, Any]:
-    """Render PNG preview from existing banner HTML/SVG, automatically selecting the latest edited file."""
+    """Render PNG preview from existing banner HTML/SVG, automatically selecting the latest edited file and syncing to banner.html / banner.svg."""
     given_path = Path(html_path)
     if not given_path.exists():
         raise FileNotFoundError(f"Banner file not found: {given_path}")
@@ -690,20 +691,53 @@ def render_existing_banner_html_file(
         source_path = given_path
 
     directory = source_path.parent
+    main_html_path = directory / "banner.html"
+    main_svg_path = directory / "banner.svg"
+    main_png_path = directory / "banner.png"
 
-    # Identify companion HTML and SVG files
-    html_candidate = directory / "banner.html"
-    if not html_candidate.is_file() and source_path.suffix.lower() == ".html":
-        html_candidate = source_path
+    # Synchronize latest HTML to banner.html
+    html_source: Optional[Path] = None
+    if source_path.suffix.lower() == ".html":
+        html_source = source_path
+    elif (source_path.with_suffix(".html")).is_file():
+        html_source = source_path.with_suffix(".html")
+    else:
+        html_candidates = [
+            p for p in directory.glob("*.html") if p.is_file() and p.resolve() != main_html_path.resolve()
+        ]
+        if html_candidates:
+            html_candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            html_source = html_candidates[0]
 
-    svg_candidate = directory / "banner.svg"
-    if not svg_candidate.is_file() and source_path.suffix.lower() == ".svg":
-        svg_candidate = source_path
+    if html_source and html_source.is_file() and html_source.resolve() != main_html_path.resolve():
+        try:
+            shutil.copy2(html_source, main_html_path)
+        except Exception as exc:
+            logger.warning(f"Failed to sync {html_source} to {main_html_path}: {exc}")
+
+    # Synchronize latest SVG to banner.svg
+    svg_source: Optional[Path] = None
+    if source_path.suffix.lower() == ".svg":
+        svg_source = source_path
+    elif (source_path.with_suffix(".svg")).is_file():
+        svg_source = source_path.with_suffix(".svg")
+    else:
+        svg_candidates = [
+            p for p in directory.glob("*.svg") if p.is_file() and p.resolve() != main_svg_path.resolve()
+        ]
+        if svg_candidates:
+            svg_candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            svg_source = svg_candidates[0]
+
+    if svg_source and svg_source.is_file() and svg_source.resolve() != main_svg_path.resolve():
+        try:
+            shutil.copy2(svg_source, main_svg_path)
+        except Exception as exc:
+            logger.warning(f"Failed to sync {svg_source} to {main_svg_path}: {exc}")
 
     output_png_path = (
         Path(png_path) if png_path is not None else source_path.with_suffix(".png")
     )
-    main_png_path = directory / "banner.png"
 
     rendered_png: Optional[str] = None
     notes = f"Loaded banner file: {source_path.name}"
@@ -715,7 +749,6 @@ def render_existing_banner_html_file(
             # Sync to main banner.png as well
             if output_png_path.resolve() != main_png_path.resolve():
                 try:
-                    import shutil
                     shutil.copy2(output_png_path, main_png_path)
                 except Exception:
                     pass
@@ -725,11 +758,15 @@ def render_existing_banner_html_file(
     else:
         notes = "Playwright rendering is disabled."
 
+    # Identify companion HTML and SVG files for return dict
+    html_target = main_html_path if main_html_path.is_file() else source_path
+    svg_target = main_svg_path if main_svg_path.is_file() else (source_path if source_path.suffix.lower() == ".svg" else None)
+
     return {
         "source_file": str(source_path),
         "source_type": source_path.suffix.lstrip(".").lower(),
-        "html_path": str(html_candidate) if html_candidate.is_file() else str(source_path),
-        "svg_path": str(svg_candidate) if svg_candidate.is_file() else None,
+        "html_path": str(html_target),
+        "svg_path": str(svg_target) if svg_target else None,
         "png_path": rendered_png,
         "notes": notes,
     }

@@ -9,8 +9,8 @@ load_dotenv()
 
 
 def _patch_openai_token_details() -> None:
-    """Compatibility patch for openai-agents with newer openai SDK versions where
-
+    """
+    Compatibility patch for openai-agents with newer openai SDK versions where
     new fields (e.g. cache_write_tokens) were introduced without default values.
     """
     try:
@@ -43,8 +43,6 @@ DECORATION_ASSET_DIR = ASSETS_DIR / "decorations"
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 OUTPUT_DIR = ARTIFACTS_DIR / "output"
 BANNER_OUTPUT_DIR = OUTPUT_DIR / "banners"
-BANNER_MEMORY_DIR = OUTPUT_DIR / "memory"
-BANNER_SESSION_DB_PATH = OUTPUT_DIR / "banner_memory.sqlite3"
 GRAPH_OUTPUT_DIR = ARTIFACTS_DIR / "graph"
 
 # Default parameters

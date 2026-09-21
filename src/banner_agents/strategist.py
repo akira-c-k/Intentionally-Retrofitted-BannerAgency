@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from agents.agent import Agent
 from src.models import BannerRequirements
-from src.tools.memory import record_banner_memory
 
 
 def build_banner_strategist() -> Agent:
@@ -19,11 +18,10 @@ def build_banner_strategist() -> Agent:
             "- Set the copywriting tone (e.g. energetic, trustworthy, luxurious, friendly)\n"
             "- Create clear copy requirements (key selling points, mandatory text, CTA direction)\n"
             "- Maintain canvas dimensions (width and height in pixels)\n\n"
-            "Use only text input. Always call record_banner_memory with a short summary of your "
-            "strategy before returning.\n"
+            "Use only text input.\n"
             "When iteration > 1: Analyze `reviewer_feedback` if present and refine requirements accordingly.\n"
             "Return structured output as BannerRequirements."
         ),
-        tools=[record_banner_memory],
+        tools=[],
         output_type=BannerRequirements,
     )

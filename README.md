@@ -1,8 +1,10 @@
+[English](README.en.md) | **日本語**
+
 # Intentionally Retrofitted BannerAgency
 
 OpenAIのLLMを搭載した複数の専門エージェントを指揮者（Orchestrator）がツールとして順次呼び出し、協調して高品質な広告バナー（**HTML / SVG / 高解像度PNG**）を自動生成するマルチエージェント制作システムです。
 
-* 本システムは、BannerAgencyを実装しつつも、意図的に画像生成AI（T2I）の利用を回避し、既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
+* 本システムは、BannerAgencyを実装しつつも、**意図的に画像生成AI（T2I）の利用を回避**し、既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
 
 ---
 
@@ -154,8 +156,6 @@ artifacts/
 │   │       ├── banner_iter1.png
 │   │       ├── banner_iter2.html     # イテレーション2の履歴
 │   │       └── ...
-│   └── memory/
-│       └── <banner_id>.jsonl         # 各エージェントの思考ログ・レビューフィードバック履歴
 └── graph/
     └── banner_graph_<banner_id>.md   # Mermaid形式のエージェント実行フロー可視化グラフ
 ```

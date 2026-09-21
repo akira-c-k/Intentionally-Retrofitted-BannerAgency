@@ -20,7 +20,6 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config import (
     BANNER_MAX_ITERATIONS,
     BANNER_PREVIOUS_HTML_MAX_CHARS,
-    BANNER_SESSION_DB_PATH,
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     GRAPH_OUTPUT_DIR,
@@ -28,18 +27,12 @@ from src.config import (
 )
 
 from agents.agent import Agent, AgentToolStreamEvent
-from agents.memory import SQLiteSession
 from agents.run import Runner
 from agents.stream_events import AgentUpdatedStreamEvent, RunItemStreamEvent, StreamEvent
 
 from src.banner_agents.orchestrator import build_banner_orchestrator
 from src.models import BannerCreationOutput
 from src.tools.graph import RuntimeGraphBuilder
-from src.tools.memory import (
-    append_banner_memory_record,
-    reset_active_banner_memory_id,
-    set_active_banner_memory_id,
-)
 from src.tools.renderer import render_existing_banner_html_file
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -197,17 +190,10 @@ async def run_banner_pipeline(
     interactive: bool = True,
 ) -> BannerCreationOutput:
     banner_id = _banner_run_id(objective)
-    banner_memory_token = set_active_banner_memory_id(banner_id)
 
     runtime_graph = RuntimeGraphBuilder()
     nested_stream_observer = _NestedStreamObserver(runtime_graph)
     orchestrator = build_banner_orchestrator(on_nested_stream=nested_stream_observer)
-
-    BANNER_SESSION_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    session = SQLiteSession(
-        session_id=banner_id,
-        db_path=BANNER_SESSION_DB_PATH,
-    )
 
     reviewer_feedback: str | None = None
     previous_summary: str | None = None
@@ -236,7 +222,6 @@ async def run_banner_pipeline(
                 orchestrator,
                 banner_query,
                 max_turns=12,
-                session=session,
             )
 
             async with _ProgressReporter("Creating Banner") as progress:
@@ -260,13 +245,6 @@ async def run_banner_pipeline(
             while True:
                 action = input("Review action [OK (approve) / Comment (request revision) / Render (re-render) / Exit]: ").strip().lower()
                 if action in {"ok", "approve"}:
-                    append_banner_memory_record(
-                        banner_id=banner_id,
-                        iteration=iteration,
-                        role="reviewer",
-                        content="Approved by reviewer.",
-                        record_type="approval",
-                    )
                     print(f"Banner approved! HTML available at: {final_output.developer.html_path}")
                     if final_output.developer.svg_path:
                         print(f"SVG available at: {final_output.developer.svg_path}")
@@ -274,13 +252,6 @@ async def run_banner_pipeline(
                     break
 
                 if action in {"exit", "quit"}:
-                    append_banner_memory_record(
-                        banner_id=banner_id,
-                        iteration=iteration,
-                        role="reviewer",
-                        content="Reviewer exited banner creation.",
-                        record_type="exit",
-                    )
                     print("Banner creation exited.")
                     should_stop = True
                     break
@@ -320,13 +291,6 @@ async def run_banner_pipeline(
                     feedback = input("Enter revision comment: ").strip()
                     if feedback:
                         reviewer_feedback = feedback
-                        append_banner_memory_record(
-                            banner_id=banner_id,
-                            iteration=iteration,
-                            role="reviewer",
-                            content=reviewer_feedback,
-                            record_type="review_comment",
-                        )
                         print("Revision comment recorded. Running next iteration...")
                     break
 
@@ -336,9 +300,6 @@ async def run_banner_pipeline(
                 break
 
     finally:
-        reset_active_banner_memory_id(banner_memory_token)
-        session.close()
-
         # Save runtime graph
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_graph_base = GRAPH_OUTPUT_DIR / f"banner_graph_{banner_id}"

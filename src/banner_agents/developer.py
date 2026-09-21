@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from agents.agent import Agent
 from src.models import BannerDeveloperOutput
-from src.tools.memory import record_banner_memory
 from src.tools.renderer import render_banner_html
 
 
@@ -19,9 +18,8 @@ def build_banner_developer() -> Agent:
             "logo asset path, list of foreground elements, banner_id (passed as output_stem), and iteration from the inputs.\n"
             "2. Call render_banner_html with objective, width, height, background_asset_path, background_css, "
             "logo_asset_path, foreground_elements, output_stem=banner_id, and iteration=iteration.\n"
-            "3. Call record_banner_memory with a brief summary of the rendered files.\n"
-            "4. Return structured output as BannerDeveloperOutput with html_path, svg_path, png_path, and notes."
+            "3. Return structured output as BannerDeveloperOutput with html_path, svg_path, png_path, and notes."
         ),
-        tools=[render_banner_html, record_banner_memory],
+        tools=[render_banner_html],
         output_type=BannerDeveloperOutput,
     )

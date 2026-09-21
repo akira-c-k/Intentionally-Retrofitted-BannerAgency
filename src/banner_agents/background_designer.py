@@ -3,7 +3,6 @@ from __future__ import annotations
 from agents.agent import Agent
 from src.models import BannerBackgroundSelection
 from src.tools.assets import list_banner_assets
-from src.tools.memory import record_banner_memory
 
 
 def build_banner_background_designer() -> Agent:
@@ -21,10 +20,9 @@ def build_banner_background_designer() -> Agent:
             "4. If no suitable image is found or asset list is empty, set selected_asset_id and asset_path to null, "
             "and provide a rich CSS background (e.g. stylish gradient or solid color) in background_css.\n"
             "5. Do NOT fabricate non-existent file paths.\n"
-            "6. When iteration > 1: Review `reviewer_feedback` if provided and adjust the background selection or CSS accordingly.\n"
-            "7. Always call record_banner_memory with a short summary before returning.\n\n"
+            "6. When iteration > 1: Review `reviewer_feedback` if provided and adjust the background selection or CSS accordingly.\n\n"
             "Return structured output as BannerBackgroundSelection."
         ),
-        tools=[list_banner_assets, record_banner_memory],
+        tools=[list_banner_assets],
         output_type=BannerBackgroundSelection,
     )

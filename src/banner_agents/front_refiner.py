@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from agents.agent import Agent
 from src.models import BannerForegroundPlan
-from src.tools.memory import record_banner_memory
 
 
 def build_banner_front_refiner() -> Agent:
@@ -28,10 +27,9 @@ def build_banner_front_refiner() -> Agent:
             "   - Position secondary elements (body_copy, note) neatly without pushing main copy away from center or CTA away from bottom.\n"
             "5. Preserve Metadata: Keep selected_logo_asset_id, logo_asset_path, and decorative_asset_path intact.\n"
             "6. Fixed Canvas Constraint: Canvas dimensions (`requirements.width` x `requirements.height`) are strictly FIXED. If an element's height expands, compress vertical gaps or adjust font sizes so that the bottom element never overflows `requirements.height - 8`.\n"
-            "7. When iteration > 1: If `reviewer_feedback` is provided, ensure requested layout adjustments are strictly respected.\n"
-            "8. Always call record_banner_memory with a short refinement summary.\n\n"
+            "7. When iteration > 1: If `reviewer_feedback` is provided, ensure requested layout adjustments are strictly respected.\n\n"
             "Return structured output as BannerForegroundPlan."
         ),
-        tools=[record_banner_memory],
+        tools=[],
         output_type=BannerForegroundPlan,
     )

@@ -3,7 +3,6 @@ from __future__ import annotations
 from agents.agent import Agent
 from src.models import BannerForegroundPlan
 from src.tools.assets import list_banner_assets
-from src.tools.memory import record_banner_memory
 
 
 def build_banner_front_designer() -> Agent:
@@ -42,10 +41,9 @@ def build_banner_front_designer() -> Agent:
             "   - Adjust surrounding elements (e.g. body_copy, badges) so they do not crowd or displace the centered main copy and bottom CTA.\n\n"
             "5. Output constraints:\n"
             "   - Element roles allowed: logo_text, main_copy, body_copy, note, cta, decorative.\n"
-            "   - Element types allowed: text, cta, decorative.\n"
-            "   - Always call record_banner_memory before returning.\n\n"
+            "   - Element types allowed: text, cta, decorative.\n\n"
             "Return structured output as BannerForegroundPlan."
         ),
-        tools=[list_banner_assets, record_banner_memory],
+        tools=[list_banner_assets],
         output_type=BannerForegroundPlan,
     )
