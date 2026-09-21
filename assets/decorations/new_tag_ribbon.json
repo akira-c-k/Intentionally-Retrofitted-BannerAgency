@@ -1,0 +1,11 @@
+{
+  "id": "new_tag_ribbon",
+  "name": "New Arrival Badge Tag",
+  "category": "decoration",
+  "theme": "new, arrival, release, latest, badge, tag, sparkle, cyan, modern, blue",
+  "description": "A stylish cyan-blue badge with sparkle accents indicating new arrivals, recent releases, and fresh features.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}

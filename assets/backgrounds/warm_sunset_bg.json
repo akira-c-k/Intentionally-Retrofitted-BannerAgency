@@ -1,0 +1,12 @@
+{
+  "id": "warm_sunset_bg",
+  "name": "Warm Sunset Energy Gradient",
+  "category": "background",
+  "theme": "sale, campaign, vibrant, energetic, warm, orange, red, sunset, autumn, hot",
+  "description": "A dynamic and vibrant warm sunset gradient with energetic glowing accents, perfect for urgent promotions, hot sales, and passionate campaigns.",
+  "recommended_mood": "energetic, passionate, urgent, warm, vibrant",
+  "dimensions": {
+    "width": 1200,
+    "height": 1000
+  }
+}

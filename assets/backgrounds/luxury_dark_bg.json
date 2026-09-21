@@ -1,0 +1,12 @@
+{
+  "id": "luxury_dark_bg",
+  "name": "Luxury Dark Gold Gradient",
+  "category": "background",
+  "theme": "luxury, premium, elegant, dark, gold, vip, high-end, exclusive, black",
+  "description": "An opulent dark background with rich golden ambient glow and subtle lighting accents, designed for premium branding, VIP campaigns, and luxury events.",
+  "recommended_mood": "luxurious, prestigious, sophisticated, exclusive, elegant",
+  "dimensions": {
+    "width": 1200,
+    "height": 1000
+  }
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="500" viewBox="0 0 600 500">
+  <defs>
+    <linearGradient id="warmSunsetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4b2b" />
+      <stop offset="45%" stop-color="#ff416c" />
+      <stop offset="80%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <radialGradient id="sunBurst" cx="15%" cy="15%" r="75%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="40%" stop-color="#fed7aa" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#ff4b2b" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="curveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="500" fill="url(#warmSunsetGrad)" />
+  <circle cx="100" cy="80" r="280" fill="url(#sunBurst)" />
+  <path d="M-50,350 Q180,220 400,320 T650,200 L650,550 L-50,550 Z" fill="url(#curveGrad)" />
+  <circle cx="520" cy="420" r="140" fill="#fbbf24" opacity="0.18" />
+  <circle cx="480" cy="90" r="70" fill="#ffffff" opacity="0.12" />
+</svg>

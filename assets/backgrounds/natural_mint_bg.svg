@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="500" viewBox="0 0 600 500">
+  <defs>
+    <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="45%" stop-color="#6ee7b7" />
+      <stop offset="85%" stop-color="#bef264" />
+      <stop offset="100%" stop-color="#ecfdf5" />
+    </linearGradient>
+    <radialGradient id="softLight" cx="30%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="leafGlow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#84cc16" stop-opacity="0.05" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="500" fill="url(#mintGrad)" />
+  <circle cx="180" cy="100" r="260" fill="url(#softLight)" />
+  <path d="M400,500 C320,400 350,280 480,240 C600,200 620,380 560,500 Z" fill="url(#leafGlow)" />
+  <circle cx="80" cy="420" r="130" fill="#059669" opacity="0.1" />
+  <circle cx="520" cy="80" r="100" fill="#ffffff" opacity="0.3" />
+</svg>

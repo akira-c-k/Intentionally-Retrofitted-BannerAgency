@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <polygon points="60,5 75,40 115,40 82,65 95,105 60,80 25,105 38,65 5,40 45,40" fill="url(#goldGrad)" />
+  <circle cx="60" cy="55" r="22" fill="#b45309" />
+  <text x="60" y="60" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="sans-serif">SALE</text>
+</svg>

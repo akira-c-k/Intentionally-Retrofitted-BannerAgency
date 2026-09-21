@@ -1,0 +1,11 @@
+{
+  "id": "special_crown_badge",
+  "name": "Premium Crown Accent Badge",
+  "category": "decoration",
+  "theme": "crown, no1, premium, ranking, special, vip, gold, luxury, star, achievement",
+  "description": "A polished golden crown emblem badge for showcasing #1 ranking, premium exclusives, VIP privileges, and special achievements.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}

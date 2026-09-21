@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="leafCircleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="leafFillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#d1fae5" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#leafCircleGrad)" />
+  <!-- Dual Organic Leaf Silhouette -->
+  <path d="M100,48 C128,48 148,72 144,106 C140,138 106,148 76,146 C74,120 82,90 100,48 Z" fill="url(#leafFillGrad)" opacity="0.95" />
+  <path d="M72,146 C60,118 64,88 88,68 C90,88 88,118 72,146 Z" fill="#6ee7b7" opacity="0.8" />
+  <path d="M82,142 Q105,105 125,75" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round" />
+</svg>

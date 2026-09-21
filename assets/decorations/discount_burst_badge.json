@@ -1,0 +1,11 @@
+{
+  "id": "discount_burst_badge",
+  "name": "Discount Starburst Badge",
+  "category": "decoration",
+  "theme": "discount, sale, off, percent, burst, starburst, badge, red, urgent, offer",
+  "description": "An energetic red-orange starburst badge designed to strongly highlight discounts, special sales, and price-cut campaigns.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}

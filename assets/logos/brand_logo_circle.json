@@ -1,0 +1,11 @@
+{
+  "id": "brand_logo_circle",
+  "name": "Standard Circle Brand Icon",
+  "category": "logo",
+  "theme": "brand, logo, identity, modern, versatile",
+  "description": "A clean geometric circular brand emblem with modern gradient and monogram.",
+  "dimensions": {
+    "width": 200,
+    "height": 200
+  }
+}

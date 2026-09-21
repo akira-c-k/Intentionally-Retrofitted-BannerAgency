@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="cyanTagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="60%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <filter id="badgeShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Main Badge Pill / Diamond Base -->
+  <g transform="rotate(-12 60 60)">
+    <rect x="15" y="38" width="90" height="44" rx="10" fill="url(#cyanTagGrad)" stroke="#ffffff" stroke-width="2" filter="url(#badgeShadow)" />
+    <!-- Sparkle Top Left -->
+    <path d="M26,34 L28,26 L30,34 L38,36 L30,38 L28,46 L26,38 L18,36 Z" fill="#fef08a" />
+    <!-- Sparkle Bottom Right -->
+    <path d="M96,76 L97.5,70 L99,76 L105,77.5 L99,79 L97.5,85 L96,79 L90,77.5 Z" fill="#ffffff" />
+    <!-- NEW Text -->
+    <text x="60" y="68" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" letter-spacing="1">NEW</text>
+  </g>
+</svg>

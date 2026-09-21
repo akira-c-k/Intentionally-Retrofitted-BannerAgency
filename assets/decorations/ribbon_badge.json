@@ -1,0 +1,11 @@
+{
+  "id": "ribbon_badge",
+  "name": "Sale Ribbon Accent",
+  "category": "decoration",
+  "theme": "sale, badge, ribbon, special, accent, gold",
+  "description": "A shiny golden badge decoration for highlighting special offers, discounts, or new releases.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}
