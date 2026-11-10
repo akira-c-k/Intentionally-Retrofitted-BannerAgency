@@ -92,9 +92,11 @@ cp .env.example .env
 
 `.env` configuration:
 ```env
-LLM_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
-# Optional: Model selection (default: gpt-4o)
+LLM_API_KEY=your_api_key_here
+# Optional: Model selection (OpenAI: gpt-4o, Gemini: gemini-3.8-flash, gemini-2.5-flash, etc.)
 # LLM_MODEL=gpt-4o
+# Optional: Endpoint URL (automatically configured when using Gemini models; specify for Ollama or custom endpoints)
+# LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 # Optional: Default ON/OFF for Playwright PNG rendering (true/false)
 # ENABLE_PLAYWRIGHT_RENDER=false
 ```

@@ -219,7 +219,7 @@ async def run_banner_pipeline(
             )
 
             runtime_graph.record_query(banner_query, orchestrator.name)
-            run_config = RunConfig(model=LLM_MODEL) if LLM_MODEL else None
+            run_config = RunConfig(model=LLM_MODEL, tracing_disabled=True) if LLM_MODEL else RunConfig(tracing_disabled=True)
             streamed = Runner.run_streamed(
                 orchestrator,
                 banner_query,

@@ -92,9 +92,11 @@ cp .env.example .env
 
 `.env` の内容：
 ```env
-LLM_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
-# オプション: モデル指定 (デフォルトは gpt-4o)
+LLM_API_KEY=your_api_key_here
+# オプション: モデル指定 (OpenAI: gpt-4o, Gemini: gemini-3.8-flash, gemini-2.5-flash 等)
 # LLM_MODEL=gpt-4o
+# オプション: エンドポイントURL (Geminiモデル指定時は自動設定されます。Ollama等のローカル/他社利用時に指定)
+# LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 # オプション: PlaywrightによるPNG画像化のデフォルトON/OFF (true/false)
 # ENABLE_PLAYWRIGHT_RENDER=false
 ```
