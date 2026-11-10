@@ -84,17 +84,17 @@ source .venv/bin/activate  # macOS / Linux
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables (OpenAI API Key)
-Copy `.env.example` to create `.env` and set your OpenAI API key.
+### 2. Configure Environment Variables (LLM API Key)
+Copy `.env.example` to create `.env` and set your LLM API key.
 ```bash
 cp .env.example .env
 ```
 
 `.env` configuration:
 ```env
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
+LLM_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
 # Optional: Model selection (default: gpt-4o)
-# OPENAI_MODEL=gpt-4o
+# LLM_MODEL=gpt-4o
 # Optional: Default ON/OFF for Playwright PNG rendering (true/false)
 # ENABLE_PLAYWRIGHT_RENDER=false
 ```

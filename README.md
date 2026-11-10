@@ -84,17 +84,17 @@ source .venv/bin/activate  # macOS / Linux
 pip install -r requirements.txt
 ```
 
-### 2. 環境変数（OpenAI APIキー）の設定
-`.env.example` をコピーして `.env` を作成し、OpenAI APIキーを記載します。
+### 2. 環境変数（LLM APIキー）の設定
+`.env.example` をコピーして `.env` を作成し、LLM APIキーを記載します。
 ```bash
 cp .env.example .env
 ```
 
 `.env` の内容：
 ```env
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
+LLM_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
 # オプション: モデル指定 (デフォルトは gpt-4o)
-# OPENAI_MODEL=gpt-4o
+# LLM_MODEL=gpt-4o
 # オプション: PlaywrightによるPNG画像化のデフォルトON/OFF (true/false)
 # ENABLE_PLAYWRIGHT_RENDER=false
 ```

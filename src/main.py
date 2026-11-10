@@ -23,11 +23,12 @@ from src.config import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     GRAPH_OUTPUT_DIR,
+    LLM_MODEL,
     is_playwright_enabled_by_default,
 )
 
 from agents.agent import Agent, AgentToolStreamEvent
-from agents.run import Runner
+from agents.run import RunConfig, Runner
 from agents.stream_events import AgentUpdatedStreamEvent, RunItemStreamEvent, StreamEvent
 
 from src.banner_agents.orchestrator import build_banner_orchestrator
@@ -218,10 +219,12 @@ async def run_banner_pipeline(
             )
 
             runtime_graph.record_query(banner_query, orchestrator.name)
+            run_config = RunConfig(model=LLM_MODEL) if LLM_MODEL else None
             streamed = Runner.run_streamed(
                 orchestrator,
                 banner_query,
                 max_turns=12,
+                run_config=run_config,
             )
 
             async with _ProgressReporter("Creating Banner") as progress:

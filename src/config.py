@@ -8,6 +8,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def configure_llm_environment() -> tuple[str | None, str | None]:
+    """Configure LLM API credentials and model settings from environment variables."""
+    api_key = os.getenv("LLM_API_KEY")
+    if api_key:
+        os.environ["OPENAI_API_KEY"] = api_key
+
+    model = os.getenv("LLM_MODEL")
+    if model:
+        os.environ["OPENAI_DEFAULT_MODEL"] = model
+
+    return api_key, model
+
+
+LLM_API_KEY, LLM_MODEL = configure_llm_environment()
+
+
 def _patch_openai_token_details() -> None:
     """
     Compatibility patch for openai-agents with newer openai SDK versions where
