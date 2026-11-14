@@ -123,7 +123,7 @@ python src/main.py
 | アクション | 説明 |
 | :--- | :--- |
 | **`OK` / `approve`** | 現在のバナーを承認し、制作を完了します。 |
-| **`Comment` / `c`** | 修正指示（例：「コピー同士のマージンを広げて」「CTAボタンを黄色に」など）を入力し、エージェントによる次イテレーション（再設計）を実行します。 |
+| **`Comment` / `c`** | 修正指示（例：「コピー同士のマージンを広げて」「CTAボタンを黄色に」など）を入力し、エージェントによる次イテレーション（再設計）を実行します。**最小差分変更がデフォルト**となっており、指示のないロゴやコピー、装飾、背景はそのまま厳格に維持されます。 |
 | **`Render` / `r`** | **直近で編集された HTML または SVG ファイルを自動検出**し、LLMを介さずに PNG プレビューを即座に再生成します。（`render banner_iter2.svg` のようにファイル名を直接指定することも可能） |
 | **`Exit` / `quit`** | バナー制作を中断・終了します。 |
 
@@ -131,25 +131,35 @@ python src/main.py
 ```bash
 # 基本実行 (対話型レビューモード)
 python src/main.py --objective "春の新生活応援キャンペーン セールバナー" --width 300 --height 250
+python src/main.py --objective "AI SaaS ツールの新規ユーザー獲得" --width 300 --height 250
+
+# 英語テーマ名を直接指定（未指定時はobjectiveから自動生成されます）
+python src/main.py --objective "春の新生活応援キャンペーン セールバナー" --theme spring_sale --width 300 --height 250
 
 # PlaywrightによるPNGプレビューも有効化
 python src/main.py --objective "セキュリティソフト セールバナー" --width 300 --height 250 --render-png
 
 # 非対話型（1イテレーションで自動終了）
 python src/main.py --objective "AI SaaS ツールの新規ユーザー獲得" --non-interactive
+
+# 過去案件の再編集（フォルダ名またはパスを指定）
+python src/main.py --resume 20261111_213459_ai_saas_acquisition
+python src/main.py --resume artifacts/output/banners/20261111_213459_ai_saas_acquisition
 ```
+
+※ 引数なし（`python src/main.py`）で起動した場合も、直近の案件一覧が表示され番号で選択して再編集できます。
 
 ---
 
 ## 5. 出力ファイル構造
 
-生成された成果物は `artifacts/output/` に保存されます。
+生成された成果物は `artifacts/output/` に保存されます。出力フォルダの名称はタイムスタンプと簡潔な英語テーマ名を組み合わせた `yyyymmdd_hhmmss_theme` 形式で固定されます。
 
 ```text
 artifacts/
 ├── output/
 │   ├── banners/
-│   │   └── <banner_id>/              # セッション固有の出力フォルダ（例: 20260921_122325）
+│   │   └── <banner_id>/              # セッション固有の出力フォルダ（例: 20261110_221238_spring_sale）
 │   │       ├── banner.html           # 最新イテレーションのHTMLバナー（ブラウザで再読み込み可能）
 │   │       ├── banner.svg            # 最新イテレーションのSVGバナー
 │   │       ├── banner.png            # 最新イテレーションの高解像度PNGプレビュー

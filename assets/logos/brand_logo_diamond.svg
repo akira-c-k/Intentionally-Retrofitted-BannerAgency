@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="diamondCircleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <linearGradient id="gemTop" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="50%" stop-color="#67e8f9" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <linearGradient id="gemBottom" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="100%" stop-color="#0e7490" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#diamondCircleBg)" stroke="#2dd4bf" stroke-width="2" />
+  <!-- Faceted Diamond Geometry -->
+  <!-- Top facets -->
+  <polygon points="72,62 100,48 128,62 100,72" fill="#ffffff" opacity="0.95" />
+  <polygon points="50,78 72,62 100,72 65,92" fill="url(#gemTop)" opacity="0.85" />
+  <polygon points="128,62 150,78 135,92 100,72" fill="url(#gemTop)" opacity="0.75" />
+  <!-- Bottom facets -->
+  <polygon points="65,92 100,72 135,92 100,154" fill="url(#gemBottom)" opacity="0.9" />
+  <polygon points="50,78 65,92 100,154" fill="#0d9488" opacity="0.7" />
+  <polygon points="150,78 135,92 100,154" fill="#0891b2" opacity="0.6" />
+</svg>
+

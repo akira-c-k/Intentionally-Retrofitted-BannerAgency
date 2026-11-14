@@ -20,7 +20,9 @@ def build_banner_background_designer() -> Agent:
             "4. If no suitable image is found or asset list is empty, set selected_asset_id and asset_path to null, "
             "and provide a rich CSS background (e.g. stylish gradient or solid color) in background_css.\n"
             "5. Do NOT fabricate non-existent file paths.\n"
-            "6. When iteration > 1: Review `reviewer_feedback` if provided and adjust the background selection or CSS accordingly.\n\n"
+            "6. When iteration > 1 (STRICT MINIMAL DIFFERENCE DEFAULT):\n"
+            "   - If reviewer_feedback does NOT explicitly request changing the background, you MUST preserve the exact previous background selection (selected_asset_id, asset_path, metadata, background_css) from previous_summary.\n"
+            "   - Do NOT call list_banner_assets or re-select background assets unless explicitly requested by reviewer_feedback.\n\n"
             "Return structured output as BannerBackgroundSelection."
         ),
         tools=[list_banner_assets],

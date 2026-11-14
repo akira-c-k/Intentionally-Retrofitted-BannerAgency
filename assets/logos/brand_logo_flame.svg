@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="flameLogoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="60%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#7f1d1d" />
+    </linearGradient>
+    <linearGradient id="flameCoreGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="60%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#flameLogoBg)" />
+  <!-- Outer Flame Silhouette in White -->
+  <path d="M100,32 C116,56 142,72 142,106 C142,136 122,160 100,166 C78,160 58,136 58,106 C58,78 78,58 92,44 C90,62 100,74 108,78 C108,60 104,46 100,32 Z" fill="#ffffff" opacity="0.95" />
+  <!-- Inner Flame Accent -->
+  <path d="M100,82 C110,96 120,108 120,124 C120,140 110,152 100,156 C90,152 80,140 80,124 C80,112 88,102 96,94 Z" fill="url(#flameCoreGrad)" />
+</svg>
+

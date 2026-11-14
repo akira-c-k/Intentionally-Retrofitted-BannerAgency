@@ -19,7 +19,10 @@ def build_banner_strategist() -> Agent:
             "- Create clear copy requirements (key selling points, mandatory text, CTA direction)\n"
             "- Maintain canvas dimensions (width and height in pixels)\n\n"
             "Use only text input.\n"
-            "When iteration > 1: Analyze `reviewer_feedback` if present and refine requirements accordingly.\n"
+            "When iteration > 1 (STRICT MINIMAL DIFFERENCE DEFAULT):\n"
+            "- You MUST preserve purpose, audience, mood, tone, and dimensions from previous_summary.\n"
+            "- Only adjust copy_requirements or strategy notes directly affected by `reviewer_feedback`.\n"
+            "- Do NOT reinvent requirements or add unrequested constraints.\n\n"
             "Return structured output as BannerRequirements."
         ),
         tools=[],

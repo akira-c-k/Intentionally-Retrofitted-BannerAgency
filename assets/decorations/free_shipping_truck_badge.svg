@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="truckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="60%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <filter id="truckShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#064e3b" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  <!-- Main Badge Hexagon/Shield Shape -->
+  <circle cx="60" cy="60" r="54" fill="url(#truckGrad)" stroke="#a7f3d0" stroke-width="2" filter="url(#truckShadow)" />
+  <!-- Truck Silhouette -->
+  <g fill="#ffffff">
+    <!-- Cargo Box -->
+    <rect x="30" y="32" width="36" height="26" rx="2" />
+    <!-- Cab -->
+    <path d="M68,38 L78,38 L86,47 L86,58 L68,58 Z" />
+    <!-- Window -->
+    <path d="M70,41 L76,41 L82,48 L70,48 Z" fill="#047857" />
+    <!-- Wheels -->
+    <circle cx="42" cy="60" r="6" fill="#064e3b" stroke="#ffffff" stroke-width="2" />
+    <circle cx="76" cy="60" r="6" fill="#064e3b" stroke="#ffffff" stroke-width="2" />
+  </g>
+  <!-- Text Label -->
+  <rect x="22" y="74" width="76" height="24" rx="12" fill="#ffffff" stroke="#10b981" stroke-width="1.5" />
+  <text x="60" y="91" font-size="13" font-weight="900" fill="#047857" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" letter-spacing="1">FREE</text>
+</svg>
+

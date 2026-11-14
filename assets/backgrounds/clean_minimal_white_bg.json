@@ -1,0 +1,13 @@
+{
+  "id": "clean_minimal_white_bg",
+  "name": "Clean Minimal White Gradient",
+  "category": "background",
+  "theme": "clean, minimal, white, modern, light, corporate, business, saas, elegant, subtle",
+  "description": "An ultra-clean, elegant white and soft slate-gray background with subtle geometry and ambient lighting, optimal for modern B2B SaaS, professional services, and high-clarity typography.",
+  "recommended_mood": "clean, professional, trustworthy, modern, sophisticated",
+  "dimensions": {
+    "width": 1200,
+    "height": 1000
+  }
+}
+

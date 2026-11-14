@@ -27,7 +27,9 @@ def build_banner_front_refiner() -> Agent:
             "   - Position secondary elements (body_copy, note) neatly without pushing main copy away from center or CTA away from bottom.\n"
             "5. Preserve Metadata: Keep selected_logo_asset_id, logo_asset_path, and decorative_asset_path intact.\n"
             "6. Fixed Canvas Constraint: Canvas dimensions (`requirements.width` x `requirements.height`) are strictly FIXED. If an element's height expands, compress vertical gaps or adjust font sizes so that the bottom element never overflows `requirements.height - 8`.\n"
-            "7. When iteration > 1: If `reviewer_feedback` is provided, ensure requested layout adjustments are strictly respected.\n\n"
+            "7. When iteration > 1 (STRICT MINIMAL DIFFERENCE DEFAULT):\n"
+            "   - Strictly preserve all existing elements, logo assets, texts, colors, and unaffected positions from foreground_draft.\n"
+            "   - Do not move or re-style elements that were not targeted by `reviewer_feedback`.\n\n"
             "Return structured output as BannerForegroundPlan."
         ),
         tools=[],

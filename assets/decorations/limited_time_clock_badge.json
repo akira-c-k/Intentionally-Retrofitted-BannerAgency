@@ -1,0 +1,12 @@
+{
+  "id": "limited_time_clock_badge",
+  "name": "Limited Time Clock Badge",
+  "category": "decoration",
+  "theme": "time, limited, clock, countdown, timer, urgent, flash, sale, red, orange",
+  "description": "An urgent circular clock badge with bold Roman/numeric styling indicating limited time offers, flash sales, and 24-hour deals.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}
+

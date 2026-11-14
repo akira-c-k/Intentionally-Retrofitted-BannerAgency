@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="cubeCircleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b" />
+      <stop offset="100%" stop-color="#27272a" />
+    </linearGradient>
+    <linearGradient id="facetTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbcfe8" />
+      <stop offset="100%" stop-color="#f43f5e" />
+    </linearGradient>
+    <linearGradient id="facetLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="facetRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#9f1239" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#cubeCircleBg)" stroke="#f43f5e" stroke-width="1.5" />
+  <!-- Isometric Cube Faces -->
+  <!-- Top Face -->
+  <polygon points="100,50 146,76 100,102 54,76" fill="url(#facetTop)" />
+  <!-- Left Face -->
+  <polygon points="54,76 100,102 100,154 54,128" fill="url(#facetLeft)" />
+  <!-- Right Face -->
+  <polygon points="100,102 146,76 146,128 100,154" fill="url(#facetRight)" />
+  <!-- Inner Highlight -->
+  <polyline points="54,76 100,102 146,76" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6" />
+</svg>
+

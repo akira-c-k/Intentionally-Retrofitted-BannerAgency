@@ -10,6 +10,7 @@ import mimetypes
 import re
 import shutil
 import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Optional, Sequence, Union
 
@@ -40,6 +41,7 @@ CSS_LINE_HEIGHT = 1.18
 
 def _safe_stem(value: str) -> str:
     stem = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._-")
+    stem = re.sub(r"_+", "_", stem)
     return stem[:64] or "banner"
 
 
@@ -581,7 +583,12 @@ def render_banner_files(
         sort_keys=True,
     )
     digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()[:12]
-    dir_name = _safe_stem(output_stem) if output_stem else f"{_safe_stem(objective)}_{digest}"
+    if output_stem:
+        dir_name = _safe_stem(output_stem)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        clean_theme = _safe_stem(objective)
+        dir_name = f"{timestamp}_{clean_theme}"
     output_dir = BANNER_OUTPUT_DIR / dir_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
