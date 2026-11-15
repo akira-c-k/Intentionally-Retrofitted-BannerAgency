@@ -1,0 +1,12 @@
+{
+  "id": "point_back_coin_badge",
+  "name": "Point Up Gold Coin Badge",
+  "category": "decoration",
+  "theme": "point, cashback, coin, reward, bonus, up, gold, yellow, loyalty, campaign",
+  "description": "An opulent golden coin badge with sparkling star accents, designed for loyalty reward boosts, cashback bonuses, and point-up campaigns.",
+  "dimensions": {
+    "width": 120,
+    "height": 120
+  }
+}
+

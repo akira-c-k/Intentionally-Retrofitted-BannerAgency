@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -8,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def configure_llm_environment() -> tuple[str | None, str | None]:
-    """Configure LLM API credentials and model settings from environment variables."""
+def configure_llm_environment() -> tuple[str | None, str | None, str | None]:
+    """Configure LLM API credentials, model settings, and base URL from environment variables."""
     api_key = os.getenv("LLM_API_KEY")
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
@@ -18,10 +19,28 @@ def configure_llm_environment() -> tuple[str | None, str | None]:
     if model:
         os.environ["OPENAI_DEFAULT_MODEL"] = model
 
-    return api_key, model
+    base_url = os.getenv("LLM_BASE_URL")
+    if not base_url and model and ("gemini" in model.lower()):
+        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    if base_url:
+        os.environ["OPENAI_BASE_URL"] = base_url
+
+    # For non-OpenAI endpoints (e.g. Gemini, custom base_url), disable OpenAI responses API
+    # and switch to standard chat completions instead.
+    is_non_openai = bool(base_url) or (model and not model.startswith(("gpt-", "o1", "o3", "chatgpt")))
+    if is_non_openai:
+        try:
+            from agents.models import _openai_shared
+
+            _openai_shared.set_use_responses_by_default(False)
+        except Exception:
+            pass
+
+    return api_key, model, base_url
 
 
-LLM_API_KEY, LLM_MODEL = configure_llm_environment()
+LLM_API_KEY, LLM_MODEL, LLM_BASE_URL = configure_llm_environment()
 
 
 def _patch_openai_token_details() -> None:

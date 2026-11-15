@@ -46,6 +46,10 @@ def build_banner_orchestrator(on_nested_stream: Optional[Any] = None) -> Agent:
             "Step 5: Call `develop_banner` with requirements, background, refined foreground, banner_id, "
             "iteration, reviewer_feedback, and previous_summary (including previous_html_path / previous_html if present) "
             "to render final HTML, SVG, and optional preview files.\n\n"
+            "Critical Revision Rule (when iteration > 1):\n"
+            "DEFAULT TO STRICT MINIMAL DIFFERENCE MODIFICATION. Your primary duty during revisions is to enforce surgical, minimal-diff edits. "
+            "Direct your sub-agents to preserve all previous logos, texts, backgrounds, and element styles unless reviewer_feedback explicitly asks to change them. "
+            "Never allow swapping logos, rewriting unmentioned copies, or adding unsolicited decorations.\n\n"
             "Finally, combine the exact tool outputs into a unified BannerCreationOutput without "
             "modifying any file paths or decisions."
         ),

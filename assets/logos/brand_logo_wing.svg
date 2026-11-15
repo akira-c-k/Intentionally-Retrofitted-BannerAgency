@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="wingBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="60%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#0c4a6e" />
+    </linearGradient>
+    <linearGradient id="featherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#bae6fd" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#wingBg)" />
+  <!-- Tiered Aerodynamic Wing Feathers -->
+  <!-- Top Feather -->
+  <path d="M48,124 C68,110 110,72 156,58 C132,82 108,102 76,126 Z" fill="url(#featherGrad)" opacity="0.95" />
+  <!-- Middle Feather -->
+  <path d="M56,134 C76,122 114,94 148,84 C126,106 102,122 76,138 Z" fill="url(#featherGrad)" opacity="0.75" />
+  <!-- Bottom Feather -->
+  <path d="M68,144 C86,136 118,116 138,110 C120,126 102,138 82,148 Z" fill="url(#featherGrad)" opacity="0.55" />
+</svg>
+

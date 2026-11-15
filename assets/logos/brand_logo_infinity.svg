@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="infinityLoopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81" />
+      <stop offset="60%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="loopGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="50%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </linearGradient>
+    <linearGradient id="loopGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#infinityLoopBg)" stroke="#818cf8" stroke-width="1.5" />
+  <!-- Infinity Loop Path -->
+  <path d="M68,78 C54,78 44,88 44,100 C44,112 54,122 68,122 C84,122 96,108 100,100 C104,92 116,78 132,78 C146,78 156,88 156,100 C156,112 146,122 132,122 C116,122 104,108 100,100 C96,92 84,78 68,78 Z" fill="none" stroke="url(#loopGrad1)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M100,100 C104,92 116,78 132,78 C146,78 156,88 156,100" fill="none" stroke="url(#loopGrad2)" stroke-width="16" stroke-linecap="round" />
+</svg>
+

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="500" viewBox="0 0 600 500">
+  <defs>
+    <linearGradient id="autumnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c2d12" />
+      <stop offset="40%" stop-color="#c2410c" />
+      <stop offset="75%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <radialGradient id="warmLight" cx="25%" cy="25%" r="65%">
+      <stop offset="0%" stop-color="#fef3c7" stop-opacity="0.75" />
+      <stop offset="45%" stop-color="#fde68a" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#7c2d12" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="warmCurve" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.05" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="500" fill="url(#autumnGrad)" />
+  <circle cx="150" cy="120" r="280" fill="url(#warmLight)" />
+  <path d="M-50,330 Q160,240 380,310 T650,220 L650,500 L-50,500 Z" fill="url(#warmCurve)" />
+  <circle cx="480" cy="400" r="160" fill="#451a03" opacity="0.25" />
+  <circle cx="510" cy="110" r="6" fill="#fde68a" opacity="0.5" />
+  <circle cx="460" cy="160" r="4" fill="#fde68a" opacity="0.4" />
+</svg>
+

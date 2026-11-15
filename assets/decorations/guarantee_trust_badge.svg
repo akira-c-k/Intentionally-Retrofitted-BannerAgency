@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="trustShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="60%" stop-color="#1e40af" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="trustShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.35" />
+    </filter>
+  </defs>
+  <!-- Shield Outline -->
+  <path d="M60,10 C88,10 108,22 108,54 C108,86 78,106 60,113 C42,106 12,86 12,54 C12,22 32,10 60,10 Z" fill="url(#trustShieldGrad)" stroke="url(#goldRim)" stroke-width="3" filter="url(#trustShadow)" />
+  <!-- Inner Star & Checkmark -->
+  <circle cx="60" cy="52" r="26" fill="#1e293b" stroke="#facc15" stroke-width="1.5" />
+  <path d="M48,52 L56,60 L72,44" fill="none" stroke="#facc15" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- 100% Banner -->
+  <rect x="24" y="82" width="72" height="18" rx="4" fill="url(#goldRim)" />
+  <text x="60" y="95" font-size="11" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" letter-spacing="0.5">100% TRUST</text>
+</svg>
+

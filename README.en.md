@@ -92,9 +92,11 @@ cp .env.example .env
 
 `.env` configuration:
 ```env
-LLM_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx
-# Optional: Model selection (default: gpt-4o)
+LLM_API_KEY=your_api_key_here
+# Optional: Model selection (OpenAI: gpt-4o, Gemini: gemini-3.8-flash, gemini-2.5-flash, etc.)
 # LLM_MODEL=gpt-4o
+# Optional: Endpoint URL (automatically configured when using Gemini models; specify for Ollama or custom endpoints)
+# LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 # Optional: Default ON/OFF for Playwright PNG rendering (true/false)
 # ENABLE_PLAYWRIGHT_RENDER=false
 ```
@@ -121,7 +123,7 @@ After each iteration completes, you can perform the following actions:
 | Action | Description |
 | :--- | :--- |
 | **`OK` / `approve`** | Approves the current banner and finishes the creation session. |
-| **`Comment` / `c`** | Input revision requests (e.g., "Increase margin between copies", "Make CTA button yellow") to trigger the next design iteration with the agents. |
+| **`Comment` / `c`** | Input revision requests (e.g., "Increase margin between copies", "Make CTA button yellow") to trigger the next design iteration with the agents. **Minimal difference modification is enabled by default**, strictly preserving unmentioned logos, copies, decorations, and backgrounds. |
 | **`Render` / `r`** | **Automatically detects the most recently edited HTML or SVG file** and immediately regenerates the PNG preview without calling the LLM. (You can also specify a file explicitly, e.g., `render banner_iter2.svg`). |
 | **`Exit` / `quit`** | Aborts and exits the banner creation session. |
 
@@ -130,24 +132,33 @@ After each iteration completes, you can perform the following actions:
 # Standard execution (Interactive review mode)
 python src/main.py --objective "Spring Campaign Sale Banner" --width 300 --height 250
 
+# Specify custom English theme name (automatically generated from objective if omitted)
+python src/main.py --objective "Spring Campaign Sale Banner" --theme spring_sale --width 300 --height 250
+
 # With Playwright PNG preview rendering enabled
 python src/main.py --objective "Cybersecurity Software Sale Banner" --width 300 --height 250 --render-png
 
 # Non-interactive mode (Automatically finishes after 1 iteration)
 python src/main.py --objective "AI SaaS User Acquisition Banner" --non-interactive
+
+# Resume editing an existing banner (specify folder name or path)
+python src/main.py --resume 20261111_213459_ai_saas_acquisition
+python src/main.py --resume artifacts/output/banners/20261111_213459_ai_saas_acquisition
 ```
+
+*Note: Running `python src/main.py` without arguments will also list recent banners so you can select one by number to resume.*
 
 ---
 
 ## 5. Output File Structure
 
-Generated artifacts are saved in `artifacts/output/`:
+Generated artifacts are saved in `artifacts/output/`. The output folder name uses the `yyyymmdd_hhmmss_theme` format with a fixed timestamp and a concise English theme name.
 
 ```text
 artifacts/
 ├── output/
 │   ├── banners/
-│   │   └── <banner_id>/              # Session-specific output folder (e.g., 20260921_122325)
+│   │   └── <banner_id>/              # Session-specific output folder (e.g., 20261110_221238_spring_sale)
 │   │       ├── banner.html           # Latest iteration HTML banner (reloadable in browser)
 │   │       ├── banner.svg            # Latest iteration SVG banner
 │   │       ├── banner.png            # Latest iteration high-resolution PNG preview
