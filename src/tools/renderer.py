@@ -51,6 +51,30 @@ def _css_value(value: Any, fallback: str) -> str:
     return fallback
 
 
+def _optional_css_value(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        cleaned = value.strip().rstrip(";").replace('"', "'")
+        if cleaned and cleaned.lower() not in {"none", "null"}:
+            return cleaned
+    return None
+
+
+def _extra_element_styles(el: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    css_props = (
+        ("font_family", "font-family"),
+        ("text_shadow", "text-shadow"),
+        ("box_shadow", "box-shadow"),
+        ("border", "border"),
+        ("letter_spacing", "letter-spacing"),
+    )
+    for key, css_prop in css_props:
+        val = _optional_css_value(el.get(key))
+        if val:
+            parts.append(f"{css_prop}: {val};")
+    return (" " + " ".join(parts)) if parts else ""
+
+
 def _int_value(value: Any, fallback: int) -> int:
     try:
         return int(value)
@@ -229,6 +253,9 @@ def _normalize_foreground_elements(
         item["color"] = _css_value(item.get("color"), "#111827")
         item["background"] = _css_value(item.get("background"), "transparent")
         item["border_radius"] = max(_int_value(item.get("border_radius"), 0), 0)
+        for opt_key in ("font_family", "text_shadow", "box_shadow", "border", "letter_spacing"):
+            if opt_key in item:
+                item[opt_key] = _optional_css_value(item.get(opt_key))
 
         # Fix logo obstacle conflict for decorative / top elements
         if logo_obstacle and _rects_overlap(
@@ -335,19 +362,22 @@ def _build_banner_svg(
         dec_path = el.get("decorative_asset_path")
 
         justify = "center" if align == "center" else ("flex-end" if align == "right" else "flex-start")
+        has_bg = str(bg or "").strip().lower() not in {"", "none", "transparent"}
+        text_padding = " padding: 2px 8px;" if has_bg else ""
+        extra_styles = _extra_element_styles(el)
 
         dec_data_uri = _image_to_data_uri(dec_path)
         if el_type == "decorative" and dec_data_uri:
             content = f'<img src="{dec_data_uri}" alt="Decoration" style="width: 100%; height: 100%; object-fit: contain;" />'
         elif el_type == "cta":
-            content = f'<button style="width: 100%; height: 100%; border: none; background: inherit; color: inherit; font-size: inherit; font-weight: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center;">{text}</button>'
+            content = f'<button style="width: 100%; height: 100%; border: none; background: inherit; color: inherit; font-size: inherit; font-weight: inherit; font-family: inherit; letter-spacing: inherit; text-shadow: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; white-space: pre-line;">{text}</button>'
         else:
-            content = f'<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: {justify}; text-align: {align}; line-height: {CSS_LINE_HEIGHT};">{text}</div>'
+            content = f'<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: {justify}; text-align: {align}; line-height: {CSS_LINE_HEIGHT}; white-space: pre-line;{text_padding}">{text}</div>'
 
         item_style = (
             f"width: 100%; height: 100%; font-size: {fs}px; color: {color}; background: {bg}; "
             f"border-radius: {br}px; font-weight: {fw}; box-sizing: border-box; overflow: hidden; "
-            f"display: flex; align-items: center; justify-content: {justify}; text-align: {align};"
+            f"display: flex; align-items: center; justify-content: {justify}; text-align: {align};{extra_styles}"
         )
         fo_block = (
             f'<foreignObject x="{x}" y="{y}" width="{w}" height="{h}">\n'
@@ -417,19 +447,22 @@ def _build_banner_html(
         dec_path = el.get("decorative_asset_path")
 
         justify = "center" if align == "center" else ("flex-end" if align == "right" else "flex-start")
+        has_bg = str(bg or "").strip().lower() not in {"", "none", "transparent"}
+        text_padding = " padding: 2px 8px;" if has_bg else ""
+        extra_styles = _extra_element_styles(el)
 
         dec_data_uri = _image_to_data_uri(dec_path)
         if el_type == "decorative" and dec_data_uri:
             content = f'<img src="{dec_data_uri}" alt="Decoration" style="width: 100%; height: 100%; object-fit: contain;" />'
         elif el_type == "cta":
-            content = f'<button style="width: 100%; height: 100%; border: none; background: inherit; color: inherit; font-size: inherit; font-weight: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center;">{text}</button>'
+            content = f'<button style="width: 100%; height: 100%; border: none; background: inherit; color: inherit; font-size: inherit; font-weight: inherit; font-family: inherit; letter-spacing: inherit; text-shadow: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; white-space: pre-line;">{text}</button>'
         else:
-            content = f'<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: {justify}; text-align: {align}; line-height: {CSS_LINE_HEIGHT};">{text}</div>'
+            content = f'<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: {justify}; text-align: {align}; line-height: {CSS_LINE_HEIGHT}; white-space: pre-line;{text_padding}">{text}</div>'
 
         style = (
             f"position: absolute; left: {x}px; top: {y}px; width: {w}px; height: {h}px; "
             f"font-size: {fs}px; color: {color}; background: {bg}; border-radius: {br}px; "
-            f"font-weight: {fw}; box-sizing: border-box; overflow: hidden; z-index: 5;"
+            f"font-weight: {fw}; box-sizing: border-box; overflow: hidden; z-index: 5;{extra_styles}"
         )
         elements_html.append(f'<div class="banner-element role-{role}" style="{style}">{content}</div>')
 

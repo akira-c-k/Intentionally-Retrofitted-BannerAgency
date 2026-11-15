@@ -99,6 +99,26 @@ class BannerForegroundElement(BaseModel):
         default="left",
         description="Text alignment.",
     )
+    font_family: Optional[str] = Field(
+        default=None,
+        description="Optional CSS font-family stack matching the mood (e.g. serif, sans-serif, rounded).",
+    )
+    text_shadow: Optional[str] = Field(
+        default=None,
+        description="Optional CSS text-shadow for headline depth, contrast, or glow.",
+    )
+    box_shadow: Optional[str] = Field(
+        default=None,
+        description="Optional CSS box-shadow for CTA button elevation or badge depth.",
+    )
+    border: Optional[str] = Field(
+        default=None,
+        description="Optional CSS border (e.g. '1px solid rgba(255,255,255,0.35)').",
+    )
+    letter_spacing: Optional[str] = Field(
+        default=None,
+        description="Optional CSS letter-spacing (e.g. '0.05em' or '1px').",
+    )
 
 
 class BannerForegroundPlan(BaseModel):
@@ -189,3 +209,23 @@ class BannerRenderElement(BaseModel):
     border_radius: int = Field(default=0, description="Border radius in pixels.")
     font_weight: str = Field(default="700", description="CSS font weight.")
     align: str = Field(default="left", description="CSS text-align value.")
+    font_family: Optional[str] = Field(
+        default=None,
+        description="Optional CSS font-family stack.",
+    )
+    text_shadow: Optional[str] = Field(
+        default=None,
+        description="Optional CSS text-shadow.",
+    )
+    box_shadow: Optional[str] = Field(
+        default=None,
+        description="Optional CSS box-shadow.",
+    )
+    border: Optional[str] = Field(
+        default=None,
+        description="Optional CSS border.",
+    )
+    letter_spacing: Optional[str] = Field(
+        default=None,
+        description="Optional CSS letter-spacing.",
+    )
