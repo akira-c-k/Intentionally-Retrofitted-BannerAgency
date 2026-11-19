@@ -15,7 +15,7 @@ def build_banner_front_designer() -> Agent:
             "an impactful foreground composition adhering to established banner design principles.\n\n"
             "Responsibilities:\n"
             "1. Copywriting:\n"
-            "   - Craft a punchy, persuasive Japanese catchcopy (role: main_copy) matching the strategist's tone, using intentional line breaks (`\\n`) for rhythmic phrasing and clean line wrapping.\n"
+            "   - Craft a punchy, persuasive Japanese catchcopy (role: main_copy) matching the strategist's tone, using intentional line breaks for rhythmic phrasing and clean line wrapping.\n"
             "   - Incorporate concrete persuasion hooks (e.g. specific numbers/metrics, strong benefit contrast, or exclusivity) into main_copy or body_copy.\n"
             "   - Write concise supporting text (role: body_copy) or microcopy notes (role: note).\n"
             "   - Create an action-driving CTA button text (role: cta, type: cta, e.g. '無料で試す →', '詳しくはこちら', '今すぐチェック').\n"

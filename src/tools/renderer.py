@@ -18,9 +18,17 @@ from pydantic import Field
 from agents import function_tool
 
 from src.config import (
+    ASSETS_DIR,
     BANNER_OUTPUT_DIR,
+    BASE_DIR,
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
+    IMAGE_EXTENSIONS,
+    MAX_ASSET_FILE_BYTES,
+    MAX_FOREGROUND_ELEMENTS,
+    MAX_HEIGHT,
+    MAX_PIXELS,
+    MAX_WIDTH,
     is_playwright_enabled_by_default,
 )
 from src.models import BannerRenderElement
@@ -38,6 +46,88 @@ JAPANESE_TEXT_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff00-\
 ENGLISH_TEXT_RE = re.compile(r"[A-Za-z0-9]")
 CSS_LINE_HEIGHT = 1.18
 
+DEFAULT_BG_STYLE = "background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);"
+
+_DANGEROUS_CSS_PATTERN = re.compile(
+    r"(?:;|[{}<>\\\r\n\x00]|/\*|\*/|url\s*\(|expression\s*\(|javascript\s*:|vbscript\s*:|data\s*:|@import|-moz-binding|behavior\s*:)",
+    re.IGNORECASE,
+)
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+_FUNC_COLOR_RE = re.compile(r"^(?:rgb|rgba|hsl|hsla)\(\s*[-+0-9.,%\s/]+\)$", re.IGNORECASE)
+_SAFE_COLOR_KEYWORDS = {
+    "transparent",
+    "currentcolor",
+    "inherit",
+    "white",
+    "black",
+    "red",
+    "blue",
+    "green",
+    "yellow",
+    "orange",
+    "purple",
+    "pink",
+    "gray",
+    "grey",
+    "cyan",
+    "magenta",
+    "gold",
+    "silver",
+    "navy",
+    "teal",
+    "indigo",
+    "violet",
+    "coral",
+    "salmon",
+    "khaki",
+    "ivory",
+    "beige",
+    "crimson",
+    "maroon",
+    "olive",
+    "aqua",
+    "lime",
+    "fuchsia",
+}
+_GRADIENT_START_RE = re.compile(
+    r"^(?:repeating-)?(?:linear|radial|conic)-gradient\(",
+    re.IGNORECASE,
+)
+_SAFE_GRADIENT_CHARS_RE = re.compile(r"^[a-zA-Z0-9#(),.%+\-\s/]+$")
+_SAFE_FONT_WEIGHTS = {
+    "normal",
+    "bold",
+    "bolder",
+    "lighter",
+    "100",
+    "200",
+    "300",
+    "400",
+    "500",
+    "600",
+    "700",
+    "800",
+    "900",
+}
+_SAFE_ALIGNS = {"left", "center", "right"}
+_SAFE_FONT_FAMILY_RE = re.compile(r"^[A-Za-z0-9\s,\-'_]+$")
+_SAFE_SHADOW_RE = re.compile(r"^[A-Za-z0-9#(),.%+\-\s]+$")
+_SAFE_BORDER_RE = re.compile(
+    r"^(?P<width>\d+(?:\.\d+)?(?:px|em|rem)?)\s+(?P<style>solid|dashed|dotted|double|none)\s+(?P<color>.+)$",
+    re.IGNORECASE,
+)
+_SAFE_LETTER_SPACING_RE = re.compile(r"^(?:normal|-?\d+(?:\.\d+)?(?:px|em|rem|%))$", re.IGNORECASE)
+_DANGEROUS_SVG_PATTERN = re.compile(
+    r"(?:<\s*script\b|javascript\s*:|vbscript\s*:|\bon[a-z]+\s*=|<\s*(?:iframe|object|embed|foreignobject)\b|"
+    r"(?:xlink:href|href|src)\s*=\s*['\"]?\s*(?:https?:|//|data:text/html)|"
+    r"url\s*\(\s*['\"]?\s*(?:https?:|//)|@import)",
+    re.IGNORECASE,
+)
+_DATA_URI_RE = re.compile(
+    r"^data:(image/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/=\s]+)$",
+    re.IGNORECASE,
+)
+
 
 def _safe_stem(value: str) -> str:
     stem = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._-")
@@ -45,16 +135,165 @@ def _safe_stem(value: str) -> str:
     return stem[:64] or "banner"
 
 
-def _css_value(value: Any, fallback: str) -> str:
-    if isinstance(value, str) and value.strip():
-        return value.strip()
+def _safe_role(value: Any) -> str:
+    return re.sub(r"[^a-zA-Z0-9_-]", "", str(value or ""))[:64]
+
+
+def validate_canvas_dimensions(width: int, height: int) -> None:
+    """Validate banner canvas width, height, and total pixel count (SEC-005)."""
+    if not isinstance(width, int) or isinstance(width, bool) or not (1 <= width <= MAX_WIDTH):
+        raise ValueError(f"Invalid width: {width} (must be between 1 and {MAX_WIDTH})")
+    if not isinstance(height, int) or isinstance(height, bool) or not (1 <= height <= MAX_HEIGHT):
+        raise ValueError(f"Invalid height: {height} (must be between 1 and {MAX_HEIGHT})")
+    if width * height > MAX_PIXELS:
+        raise ValueError(f"Canvas size {width}x{height} exceeds limit of {MAX_PIXELS} pixels")
+
+
+def _has_dangerous_css_tokens(value: str) -> bool:
+    if not value or len(value) > 512:
+        return True
+    if _DANGEROUS_CSS_PATTERN.search(value):
+        return True
+    if value.count("(") != value.count(")"):
+        return True
+    return False
+
+
+def validate_css_color(value: Any, fallback: str = "#111827") -> str:
+    """Validate a CSS color value against an allowlist of hex, rgb/rgba/hsl/hsla, and safe keywords (SEC-001)."""
+    if not isinstance(value, str):
+        return fallback
+    cleaned = value.strip().rstrip(";").strip()
+    if not cleaned or _has_dangerous_css_tokens(cleaned) or ":" in cleaned:
+        return fallback
+    if _HEX_COLOR_RE.fullmatch(cleaned):
+        return cleaned
+    if _FUNC_COLOR_RE.fullmatch(cleaned):
+        return cleaned
+    if cleaned.lower() in _SAFE_COLOR_KEYWORDS:
+        return cleaned
     return fallback
 
 
-def _optional_css_value(value: Any) -> Optional[str]:
+def validate_css_background(value: Any, fallback: str = "transparent") -> str:
+    """Validate an element CSS background value (color or safe gradient, no url() or injection) (SEC-001)."""
+    if not isinstance(value, str):
+        return fallback
+    cleaned = value.strip().rstrip(";").strip()
+    if not cleaned:
+        return fallback
+    if _has_dangerous_css_tokens(cleaned) or ":" in cleaned:
+        return fallback
+    if cleaned.lower() in {"none", "transparent"}:
+        return cleaned.lower()
+    as_color = validate_css_color(cleaned, fallback="")
+    if as_color:
+        return as_color
+    if _GRADIENT_START_RE.match(cleaned) and _SAFE_GRADIENT_CHARS_RE.fullmatch(cleaned):
+        return cleaned
+    return fallback
+
+
+def validate_background_css(value: Any, fallback: str = DEFAULT_BG_STYLE) -> str:
+    """Validate container background_css declaration against CSS injection (SEC-001, SEC-003)."""
+    if not isinstance(value, str) or not value.strip():
+        return fallback
+    cleaned = value.strip()
+    if cleaned.endswith(";"):
+        cleaned = cleaned[:-1].strip()
+    prefix_match = re.match(r"^background(?:-color|-image)?\s*:\s*(.+)$", cleaned, re.IGNORECASE | re.DOTALL)
+    inner = prefix_match.group(1).strip() if prefix_match else cleaned
+    safe_bg = validate_css_background(inner, fallback="")
+    if not safe_bg:
+        return fallback
+    return f"background: {safe_bg};"
+
+
+def validate_css_font_weight(value: Any, fallback: str = "700") -> str:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        value = str(int(value))
+    if isinstance(value, str):
+        cleaned = value.strip().rstrip(";").lower()
+        if cleaned in _SAFE_FONT_WEIGHTS:
+            return cleaned
+    return fallback
+
+
+def validate_css_align(value: Any, fallback: str = "left") -> str:
+    if isinstance(value, str):
+        cleaned = value.strip().rstrip(";").lower()
+        if cleaned in _SAFE_ALIGNS:
+            return cleaned
+    return fallback
+
+
+def validate_css_font_family(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().rstrip(";").replace('"', "'").strip()
+    if not cleaned or len(cleaned) > 256 or _has_dangerous_css_tokens(cleaned) or ":" in cleaned or "(" in cleaned:
+        return None
+    if _SAFE_FONT_FAMILY_RE.fullmatch(cleaned):
+        return cleaned
+    return None
+
+
+def validate_css_shadow(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().rstrip(";").strip()
+    if not cleaned or len(cleaned) > 256 or cleaned.lower() in {"none", "null"}:
+        return None
+    if _has_dangerous_css_tokens(cleaned) or ":" in cleaned:
+        return None
+    if _SAFE_SHADOW_RE.fullmatch(cleaned):
+        return cleaned
+    return None
+
+
+def validate_css_border(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().rstrip(";").strip()
+    if not cleaned or len(cleaned) > 256 or cleaned.lower() in {"none", "null"}:
+        return None
+    if _has_dangerous_css_tokens(cleaned) or ":" in cleaned:
+        return None
+    m = _SAFE_BORDER_RE.fullmatch(cleaned)
+    if not m:
+        return None
+    color_part = validate_css_color(m.group("color"), fallback="")
+    if not color_part:
+        return None
+    width_part = m.group("width")
+    if width_part.isdigit() and width_part != "0":
+        width_part += "px"
+    return f"{width_part} {m.group('style').lower()} {color_part}"
+
+
+def validate_css_letter_spacing(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().rstrip(";").strip()
+    if not cleaned or cleaned.lower() in {"none", "null"}:
+        return None
+    if _SAFE_LETTER_SPACING_RE.fullmatch(cleaned):
+        return cleaned
+    return None
+
+
+def _optional_css_value(value: Any, *, key: Optional[str] = None) -> Optional[str]:
+    if key == "font_family":
+        return validate_css_font_family(value)
+    if key in {"text_shadow", "box_shadow"}:
+        return validate_css_shadow(value)
+    if key == "border":
+        return validate_css_border(value)
+    if key == "letter_spacing":
+        return validate_css_letter_spacing(value)
     if isinstance(value, str):
         cleaned = value.strip().rstrip(";").replace('"', "'")
-        if cleaned and cleaned.lower() not in {"none", "null"}:
+        if cleaned and cleaned.lower() not in {"none", "null"} and not _has_dangerous_css_tokens(cleaned) and ":" not in cleaned:
             return cleaned
     return None
 
@@ -69,7 +308,7 @@ def _extra_element_styles(el: Dict[str, Any]) -> str:
         ("letter_spacing", "letter-spacing"),
     )
     for key, css_prop in css_props:
-        val = _optional_css_value(el.get(key))
+        val = _optional_css_value(el.get(key), key=key)
         if val:
             parts.append(f"{css_prop}: {val};")
     return (" " + " ".join(parts)) if parts else ""
@@ -106,13 +345,17 @@ def _estimated_line_count(line: str, *, width: int, font_size: int) -> int:
     return line_count
 
 
+def _normalize_text_newlines(value: Any) -> str:
+    return str(value or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("¥n", "\n")
+
+
 def _estimated_text_height(element: Dict[str, Any]) -> int:
     element_type = str(element.get("type") or "text")
     specified_height = _int_value(element.get("height"), 0)
     if element_type == "decorative":
         return specified_height or 40
 
-    text = str(element.get("text") or element.get("label") or "")
+    text = _normalize_text_newlines(element.get("text") or element.get("label") or "")
     if not text:
         return specified_height or 28
 
@@ -167,26 +410,141 @@ def _logo_obstacle_rect(*, canvas_width: int, canvas_height: int) -> Dict[str, i
     }
 
 
+def _validate_image_bytes(data: bytes, suffix: str) -> None:
+    """Validate image file size, binary signature (magic bytes), or SVG markup safety (SEC-002, SEC-003, SEC-004, SEC-005)."""
+    if not data or len(data) > MAX_ASSET_FILE_BYTES:
+        raise ValueError(f"Asset data size ({len(data)} bytes) is empty or exceeds limit ({MAX_ASSET_FILE_BYTES} bytes)")
+
+    ext = suffix.lower()
+    if ext == ".png":
+        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise ValueError("Invalid PNG file header")
+    elif ext in {".jpg", ".jpeg"}:
+        if not data.startswith(b"\xff\xd8\xff"):
+            raise ValueError("Invalid JPEG file header")
+    elif ext == ".webp":
+        if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+            raise ValueError("Invalid WebP file header")
+    elif ext == ".svg":
+        try:
+            svg_text = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("Invalid UTF-8 encoding in SVG file") from exc
+        if "<svg" not in svg_text.lower():
+            raise ValueError("File does not contain a valid <svg> root element")
+        if _DANGEROUS_SVG_PATTERN.search(svg_text):
+            raise ValueError("Unsafe SVG content detected (scripts, event handlers, or external URLs are forbidden)")
+    else:
+        raise ValueError(f"Unsupported image extension: {ext}")
+
+
+def validate_asset_path(source: Union[str, Path]) -> Path:
+    """Validate that an asset path resolves strictly inside ASSETS_DIR and is a valid, safe image file (SEC-002)."""
+    asset_root = ASSETS_DIR.resolve()
+
+    if isinstance(source, str):
+        src_str = source.strip()
+        if not src_str:
+            raise ValueError("Asset path is empty")
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", src_str) or src_str.startswith("//"):
+            raise ValueError(f"External URLs or URI schemes are forbidden for asset paths: {src_str}")
+        candidate = Path(src_str)
+    elif isinstance(source, Path):
+        candidate = source
+    else:
+        raise ValueError(f"Invalid asset path type: {type(source)}")
+
+    if not candidate.is_absolute():
+        if len(candidate.parts) == 1 and candidate.suffix == "" and re.fullmatch(r"[A-Za-z0-9_-]+", candidate.name):
+            for subdir in ("backgrounds", "logos", "decorations"):
+                for ext in IMAGE_EXTENSIONS:
+                    possible = asset_root / subdir / f"{candidate.name}{ext}"
+                    if possible.is_file():
+                        candidate = possible
+                        break
+                if candidate.is_absolute():
+                    break
+        resolved = (BASE_DIR / candidate).resolve(strict=False)
+        if not resolved.exists() and (Path.cwd() / candidate).exists():
+            resolved = (Path.cwd() / candidate).resolve(strict=False)
+    else:
+        resolved = candidate.resolve(strict=False)
+
+    try:
+        is_inside = resolved.is_relative_to(asset_root)
+    except ValueError:
+        is_inside = False
+
+    if not is_inside:
+        raise ValueError(f"Access outside asset directory is forbidden: {source}")
+
+    if not resolved.is_file():
+        raise ValueError(f"Invalid asset file (does not exist or is not a file): {source}")
+
+    suffix = resolved.suffix.lower()
+    if suffix not in IMAGE_EXTENSIONS:
+        raise ValueError(f"Unsupported asset extension '{suffix}' for {source}")
+
+    file_size = resolved.stat().st_size
+    if file_size <= 0 or file_size > MAX_ASSET_FILE_BYTES:
+        raise ValueError(f"Asset file size ({file_size} bytes) exceeds limit")
+
+    _validate_image_bytes(resolved.read_bytes(), suffix)
+    return resolved
+
+
+def validate_data_uri(data_uri: str) -> str:
+    """Validate a base64 image data: URI for MIME allowlist, size limit, and content safety (SEC-004)."""
+    if not isinstance(data_uri, str):
+        raise ValueError("Data URI must be a string")
+    cleaned = data_uri.strip()
+    m = _DATA_URI_RE.fullmatch(cleaned)
+    if not m:
+        raise ValueError("Unsupported or malformed data URI (only base64 png/jpeg/webp/svg+xml allowed)")
+
+    mime_type = m.group(1).lower()
+    b64_payload = re.sub(r"\s+", "", m.group(2))
+    if len(b64_payload) > (MAX_ASSET_FILE_BYTES * 4 // 3) + 64:
+        raise ValueError("Data URI payload exceeds maximum allowed size")
+
+    try:
+        raw_bytes = base64.b64decode(b64_payload, validate=True)
+    except Exception as exc:
+        raise ValueError("Invalid base64 payload in data URI") from exc
+
+    mime_to_ext = {
+        "image/svg+xml": ".svg",
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+    }
+    _validate_image_bytes(raw_bytes, mime_to_ext[mime_type])
+    return f"data:{mime_type};base64,{b64_payload}"
+
+
 def _image_to_data_uri(source: Optional[Union[str, Path]]) -> Optional[str]:
-    """Convert an image file path (SVG, PNG, JPG, WebP) to a Base64 Data URI."""
+    """Safely convert an allowed asset image path (inside assets/) or validated data: URI to a Base64 Data URI."""
     if not source:
         return None
     if isinstance(source, str):
         src_str = source.strip()
         if not src_str:
             return None
-        if src_str.startswith("data:") or src_str.startswith("http://") or src_str.startswith("https://"):
-            return src_str
-        path = Path(src_str)
-    else:
-        path = source
-
-    if not path.is_file():
-        candidate = Path.cwd() / path
-        if candidate.is_file():
-            path = candidate
-        else:
+        if src_str.lower().startswith("data:"):
+            try:
+                return validate_data_uri(src_str)
+            except ValueError as exc:
+                logger.warning("Blocked unsafe or invalid data URI: %s", exc)
+                return None
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", src_str) or src_str.startswith("//"):
+            logger.warning("Blocked external URL in _image_to_data_uri: %s", src_str)
             return None
+
+    try:
+        path = validate_asset_path(source)
+    except (ValueError, OSError) as exc:
+        logger.warning("Blocked or invalid asset path '%s': %s", source, exc)
+        return None
 
     suffix = path.suffix.lower()
     mime_types = {
@@ -195,7 +553,6 @@ def _image_to_data_uri(source: Optional[Union[str, Path]]) -> Optional[str]:
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
-        ".gif": "image/gif",
     }
     mime_type = mime_types.get(suffix) or mimetypes.guess_type(path.name)[0] or "image/png"
 
@@ -217,28 +574,29 @@ def _normalize_foreground_elements(
 ) -> List[Dict[str, Any]]:
     # 1. First pass: parse, estimate moderate height, clamp bounds, and resolve logo collisions
     raw_items: List[Dict[str, Any]] = []
-    has_logo = bool(
-        logo_asset_path
-        and (Path(logo_asset_path).is_file() or logo_asset_path.startswith("data:"))
-    )
+    has_logo = bool(logo_asset_path and _image_to_data_uri(logo_asset_path) is not None)
     logo_obstacle = (
         _logo_obstacle_rect(canvas_width=canvas_width, canvas_height=canvas_height)
         if has_logo
         else None
     )
 
-    for element in elements:
+    for element in elements[:MAX_FOREGROUND_ELEMENTS]:
         item = dict(element)
         element_type = str(item.get("type") or "text")
-        role = str(item.get("role") or "").lower()
+        role = _safe_role(item.get("role")).lower()
+        item["role"] = role
         if role == "logo_image":
             continue
+
+        if item.get("text") is not None:
+            item["text"] = _normalize_text_newlines(item["text"])[:1000]
 
         item["width"] = min(
             max(_int_value(item.get("width"), 180), 20),
             canvas_width - ELEMENT_MARGIN * 2,
         )
-        item["font_size"] = max(_int_value(item.get("font_size"), 20), 10)
+        item["font_size"] = min(max(_int_value(item.get("font_size"), 20), 10), 500)
         item["height"] = min(_estimated_text_height(item), canvas_height - ELEMENT_MARGIN * 2)
         item["x"] = max(
             ELEMENT_MARGIN,
@@ -248,14 +606,14 @@ def _normalize_foreground_elements(
             ELEMENT_MARGIN,
             min(_int_value(item.get("y"), 24), canvas_height - item["height"] - ELEMENT_MARGIN),
         )
-        item["font_weight"] = _css_value(item.get("font_weight"), "700")
-        item["align"] = _css_value(item.get("align"), "left")
-        item["color"] = _css_value(item.get("color"), "#111827")
-        item["background"] = _css_value(item.get("background"), "transparent")
-        item["border_radius"] = max(_int_value(item.get("border_radius"), 0), 0)
+        item["font_weight"] = validate_css_font_weight(item.get("font_weight"), "700")
+        item["align"] = validate_css_align(item.get("align"), "left")
+        item["color"] = validate_css_color(item.get("color"), "#111827")
+        item["background"] = validate_css_background(item.get("background"), "transparent")
+        item["border_radius"] = min(max(_int_value(item.get("border_radius"), 0), 0), 2000)
         for opt_key in ("font_family", "text_shadow", "box_shadow", "border", "letter_spacing"):
             if opt_key in item:
-                item[opt_key] = _optional_css_value(item.get(opt_key))
+                item[opt_key] = _optional_css_value(item.get(opt_key), key=opt_key)
 
         # Fix logo obstacle conflict for decorative / top elements
         if logo_obstacle and _rects_overlap(
@@ -325,7 +683,8 @@ def _build_banner_svg(
     logo_asset_path: Optional[str],
     foreground_elements: List[Dict[str, Any]],
 ) -> str:
-    bg_style = background_css or "background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);"
+    validate_canvas_dimensions(width, height)
+    bg_style = validate_background_css(background_css, DEFAULT_BG_STYLE)
     bg_data_uri = _image_to_data_uri(background_asset_path)
     if bg_data_uri:
         bg_element = (
@@ -333,7 +692,11 @@ def _build_banner_svg(
             f'width="{width}" height="{height}" preserveAspectRatio="xMidYMid slice" />'
         )
     else:
-        bg_element = f'<rect width="{width}" height="{height}" style="{html.escape(bg_style)}" />'
+        bg_element = (
+            f'<foreignObject x="0" y="0" width="{width}" height="{height}">\n'
+            f'      <div xmlns="http://www.w3.org/1999/xhtml" class="banner-background" style="width: 100%; height: 100%; {html.escape(bg_style)}"></div>\n'
+            f'    </foreignObject>'
+        )
 
     svg_elements: List[str] = [bg_element]
 
@@ -345,24 +708,24 @@ def _build_banner_svg(
             f'preserveAspectRatio="xMidYMid meet" />'
         )
 
-    for el in foreground_elements:
-        el_type = el.get("type", "text")
-        role = el.get("role", "")
-        text = html.escape(str(el.get("text") or el.get("label") or ""))
-        x = el.get("x", 20)
-        y = el.get("y", 20)
-        w = el.get("width", 200)
-        h = el.get("height", 40)
-        fs = el.get("font_size", 18)
-        color = el.get("color", "#ffffff")
-        bg = el.get("background", "transparent")
-        br = el.get("border_radius", 0)
-        fw = el.get("font_weight", "bold")
-        align = el.get("align", "left")
+    for el in foreground_elements[:MAX_FOREGROUND_ELEMENTS]:
+        el_type = str(el.get("type") or "text")
+        role = _safe_role(el.get("role"))
+        text = html.escape(_normalize_text_newlines(el.get("text") or el.get("label") or "")[:1000])
+        x = _int_value(el.get("x"), 20)
+        y = _int_value(el.get("y"), 20)
+        w = _int_value(el.get("width"), 200)
+        h = _int_value(el.get("height"), 40)
+        fs = _int_value(el.get("font_size"), 18)
+        color = validate_css_color(el.get("color"), "#ffffff")
+        bg = validate_css_background(el.get("background"), "transparent")
+        br = max(_int_value(el.get("border_radius"), 0), 0)
+        fw = validate_css_font_weight(el.get("font_weight"), "bold")
+        align = validate_css_align(el.get("align"), "left")
         dec_path = el.get("decorative_asset_path")
 
         justify = "center" if align == "center" else ("flex-end" if align == "right" else "flex-start")
-        has_bg = str(bg or "").strip().lower() not in {"", "none", "transparent"}
+        has_bg = bg.strip().lower() not in {"", "none", "transparent"}
         text_padding = " padding: 2px 8px;" if has_bg else ""
         extra_styles = _extra_element_styles(el)
 
@@ -391,7 +754,7 @@ def _build_banner_svg(
     elements_str = "\n    ".join(svg_elements)
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-  <title>{html.escape(objective)}</title>
+  <title>{html.escape(objective[:2000])}</title>
   <defs>
     <style>
       * {{
@@ -415,7 +778,8 @@ def _build_banner_html(
     logo_asset_path: Optional[str],
     foreground_elements: List[Dict[str, Any]],
 ) -> str:
-    bg_style = background_css or "background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);"
+    validate_canvas_dimensions(width, height)
+    bg_style = validate_background_css(background_css, DEFAULT_BG_STYLE)
     bg_data_uri = _image_to_data_uri(background_asset_path)
     if bg_data_uri:
         bg_style = f"background-image: url('{bg_data_uri}'); background-size: cover; background-position: center;"
@@ -430,24 +794,24 @@ def _build_banner_html(
             f'</div>'
         )
 
-    for el in foreground_elements:
-        el_type = el.get("type", "text")
-        role = el.get("role", "")
-        text = html.escape(str(el.get("text") or el.get("label") or ""))
-        x = el.get("x", 20)
-        y = el.get("y", 20)
-        w = el.get("width", 200)
-        h = el.get("height", 40)
-        fs = el.get("font_size", 18)
-        color = el.get("color", "#ffffff")
-        bg = el.get("background", "transparent")
-        br = el.get("border_radius", 0)
-        fw = el.get("font_weight", "bold")
-        align = el.get("align", "left")
+    for el in foreground_elements[:MAX_FOREGROUND_ELEMENTS]:
+        el_type = str(el.get("type") or "text")
+        role = _safe_role(el.get("role"))
+        text = html.escape(_normalize_text_newlines(el.get("text") or el.get("label") or "")[:1000])
+        x = _int_value(el.get("x"), 20)
+        y = _int_value(el.get("y"), 20)
+        w = _int_value(el.get("width"), 200)
+        h = _int_value(el.get("height"), 40)
+        fs = _int_value(el.get("font_size"), 18)
+        color = validate_css_color(el.get("color"), "#ffffff")
+        bg = validate_css_background(el.get("background"), "transparent")
+        br = max(_int_value(el.get("border_radius"), 0), 0)
+        fw = validate_css_font_weight(el.get("font_weight"), "bold")
+        align = validate_css_align(el.get("align"), "left")
         dec_path = el.get("decorative_asset_path")
 
         justify = "center" if align == "center" else ("flex-end" if align == "right" else "flex-start")
-        has_bg = str(bg or "").strip().lower() not in {"", "none", "transparent"}
+        has_bg = bg.strip().lower() not in {"", "none", "transparent"}
         text_padding = " padding: 2px 8px;" if has_bg else ""
         extra_styles = _extra_element_styles(el)
 
@@ -473,7 +837,7 @@ def _build_banner_html(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width={width}, height={height}, initial-scale=1.0">
-  <title>{html.escape(objective)}</title>
+  <title>{html.escape(objective[:2000])}</title>
   <style>
     * {{
       margin: 0;
@@ -591,6 +955,8 @@ def render_banner_files(
     iteration: int = 1,
     enable_playwright: Optional[bool] = None,
 ) -> Dict[str, Any]:
+    validate_canvas_dimensions(width, height)
+    safe_iteration = max(1, min(_int_value(iteration, 1), 100))
     foreground_elements_list = [
         element.model_dump() if isinstance(element, BannerRenderElement) else element
         for element in foreground_elements or []
@@ -610,7 +976,7 @@ def render_banner_files(
             "background_css": background_css,
             "logo_asset_path": logo_asset_path,
             "foreground_elements": normalized_elements,
-            "iteration": iteration,
+            "iteration": safe_iteration,
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -622,15 +988,18 @@ def render_banner_files(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         clean_theme = _safe_stem(objective)
         dir_name = f"{timestamp}_{clean_theme}"
-    output_dir = BANNER_OUTPUT_DIR / dir_name
+    output_root = BANNER_OUTPUT_DIR.resolve()
+    output_dir = (BANNER_OUTPUT_DIR / dir_name).resolve()
+    if not output_dir.is_relative_to(output_root):
+        raise ValueError(f"Output directory escapes BANNER_OUTPUT_DIR: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     html_path = output_dir / "banner.html"
     svg_path = output_dir / "banner.svg"
     png_path = output_dir / "banner.png"
 
-    iter_html_path = output_dir / f"banner_iter{iteration}.html"
-    iter_svg_path = output_dir / f"banner_iter{iteration}.svg"
+    iter_html_path = output_dir / f"banner_iter{safe_iteration}.html"
+    iter_svg_path = output_dir / f"banner_iter{safe_iteration}.svg"
 
     html_content = _build_banner_html(
         objective=objective,
@@ -720,6 +1089,7 @@ def render_existing_banner_html_file(
     auto_detect_latest: bool = True,
 ) -> Dict[str, Any]:
     """Render PNG preview from existing banner HTML/SVG, automatically selecting the latest edited file and syncing to banner.html / banner.svg."""
+    validate_canvas_dimensions(width, height)
     given_path = Path(html_path)
     if not given_path.exists():
         raise FileNotFoundError(f"Banner file not found: {given_path}")

@@ -42,7 +42,11 @@ from src.models import (
     BannerRequirements,
 )
 from src.tools.graph import RuntimeGraphBuilder
-from src.tools.renderer import render_banner_files, render_existing_banner_html_file
+from src.tools.renderer import (
+    render_banner_files,
+    render_existing_banner_html_file,
+    validate_canvas_dimensions,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -172,7 +176,14 @@ async def _resolve_banner_theme(objective: str, theme: str | None = None) -> str
 
 
 def _read_previous_banner_html(html_path: str) -> str:
-    path = Path(html_path)
+    try:
+        path = Path(html_path).resolve(strict=False)
+        output_root = BANNER_OUTPUT_DIR.resolve()
+        if not path.is_relative_to(output_root) or path.suffix.lower() != ".html":
+            return f"[previous HTML path outside banner output directory refused: {html_path}]"
+    except Exception:
+        return f"[invalid previous HTML path: {html_path}]"
+
     if not path.is_file():
         return f"[previous HTML file not found: {html_path}]"
     html_text = path.read_text(encoding="utf-8")
@@ -444,6 +455,39 @@ def apply_minimal_diff_guardrails(
     return current
 
 
+def _sync_rendered_banner_if_needed(output: BannerCreationOutput, banner_id: str) -> BannerCreationOutput:
+    """Re-render banner files if background asset path was auto-resolved or literal \\n sequences remain in HTML."""
+    html_path = Path(output.developer.html_path)
+    if not html_path.is_file():
+        return output
+    try:
+        html_text = html_path.read_text(encoding="utf-8")
+    except Exception:
+        return output
+
+    needs_sync = (
+        bool(output.background.asset_path and "background-image: url('data:" not in html_text)
+        or ("\\n" in html_text)
+        or ("¥n" in html_text)
+    )
+    if needs_sync:
+        rendered = render_banner_files(
+            objective=output.requirements.purpose,
+            width=output.requirements.width,
+            height=output.requirements.height,
+            background_asset_path=output.background.asset_path,
+            background_css=output.background.background_css,
+            logo_asset_path=output.foreground.logo_asset_path,
+            foreground_elements=[el.model_dump() for el in output.foreground.elements],
+            output_stem=banner_id,
+            iteration=output.iteration,
+        )
+        output.developer.html_path = rendered["html_path"]
+        output.developer.svg_path = rendered.get("svg_path")
+        output.developer.png_path = rendered.get("png_path")
+    return output
+
+
 def _print_banner_creation_output(output: BannerCreationOutput) -> None:
     print("\n=================== BANNER OUTPUT ===================")
     print(f"Iteration: {output.iteration}")
@@ -500,13 +544,16 @@ async def run_banner_pipeline(
         print(f"HTML:                {final_output.developer.html_path}")
         print("========================================================\n")
     else:
-        if not objective:
+        if not objective or not objective.strip():
             raise ValueError("Objective is required when not resuming an existing banner.")
+        validate_canvas_dimensions(width, height)
         resolved_theme = await _resolve_banner_theme(objective, theme=theme)
         banner_id = _banner_run_id(resolved_theme)
         start_iteration = 1
         previous_summary = None
         final_output = None
+
+    validate_canvas_dimensions(width, height)
 
     runtime_graph = RuntimeGraphBuilder()
     nested_stream_observer = _NestedStreamObserver(runtime_graph)
@@ -602,6 +649,7 @@ async def run_banner_pipeline(
                     previous=previous_output,
                     reviewer_feedback=reviewer_feedback,
                 )
+            final_output = _sync_rendered_banner_if_needed(final_output, banner_id)
             previous_output = final_output
             _print_banner_creation_output(final_output)
             _save_banner_data(BANNER_OUTPUT_DIR / banner_id, final_output)

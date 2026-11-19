@@ -9,6 +9,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def validate_llm_base_url(base_url: str) -> str:
+    """Validate LLM_BASE_URL to prevent sending API keys to insecure or non-HTTP endpoints (SEC-008)."""
+    cleaned = base_url.strip()
+    if cleaned.startswith("https://"):
+        return cleaned
+    if cleaned.startswith(("http://localhost", "http://127.0.0.1", "http://[::1]")):
+        return cleaned
+    raise ValueError(
+        f"Invalid or insecure LLM_BASE_URL '{cleaned}': must use https:// (or http://localhost for local models)."
+    )
+
+
 def configure_llm_environment() -> tuple[str | None, str | None, str | None]:
     """Configure LLM API credentials, model settings, and base URL from environment variables."""
     api_key = os.getenv("LLM_API_KEY")
@@ -17,6 +29,7 @@ def configure_llm_environment() -> tuple[str | None, str | None, str | None]:
 
     model = os.getenv("LLM_MODEL")
     if model:
+        model = re.sub(r"^gemini-(flash|pro)-([0-9.]+)(.*)$", r"gemini-\2-\1\3", model.strip())
         os.environ["OPENAI_DEFAULT_MODEL"] = model
 
     base_url = os.getenv("LLM_BASE_URL")
@@ -24,6 +37,7 @@ def configure_llm_environment() -> tuple[str | None, str | None, str | None]:
         base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
     if base_url:
+        base_url = validate_llm_base_url(base_url)
         os.environ["OPENAI_BASE_URL"] = base_url
 
     # For non-OpenAI endpoints (e.g. Gemini, custom base_url), disable OpenAI responses API
@@ -85,6 +99,13 @@ DEFAULT_WIDTH = 300
 DEFAULT_HEIGHT = 250
 BANNER_MAX_ITERATIONS = 5
 BANNER_PREVIOUS_HTML_MAX_CHARS = 30_000
+
+# Security & resource limits (SEC-002, SEC-004, SEC-005, SEC-006)
+MAX_WIDTH = 4096
+MAX_HEIGHT = 4096
+MAX_PIXELS = 16_000_000
+MAX_ASSET_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
+MAX_FOREGROUND_ELEMENTS = 50
 
 
 # Playwright configuration
