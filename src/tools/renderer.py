@@ -522,7 +522,37 @@ def validate_data_uri(data_uri: str) -> str:
     return f"data:{mime_type};base64,{b64_payload}"
 
 
-def _image_to_data_uri(source: Optional[Union[str, Path]]) -> Optional[str]:
+def _make_svg_stretchable(svg_bytes: bytes) -> bytes:
+    """Ensure the root <svg> element stretches to fill any target canvas dimensions (preserveAspectRatio='none')."""
+    try:
+        svg_text = svg_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return svg_bytes
+
+    def _patch_root_svg(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        if re.search(r"\bpreserveAspectRatio\s*=", tag, re.IGNORECASE):
+            tag = re.sub(
+                r'\bpreserveAspectRatio\s*=\s*["\'][^"\']*["\']',
+                'preserveAspectRatio="none"',
+                tag,
+                flags=re.IGNORECASE,
+            )
+        else:
+            tag = tag[:-1] + ' preserveAspectRatio="none">'
+        tag = re.sub(r'\bwidth\s*=\s*["\'][^"\']*["\']', 'width="100%"', tag, flags=re.IGNORECASE)
+        tag = re.sub(r'\bheight\s*=\s*["\'][^"\']*["\']', 'height="100%"', tag, flags=re.IGNORECASE)
+        return tag
+
+    patched = re.sub(r"<svg\b[^>]*>", _patch_root_svg, svg_text, count=1, flags=re.IGNORECASE)
+    return patched.encode("utf-8")
+
+
+def _image_to_data_uri(
+    source: Optional[Union[str, Path]],
+    *,
+    stretch_svg: bool = False,
+) -> Optional[str]:
     """Safely convert an allowed asset image path (inside assets/) or validated data: URI to a Base64 Data URI."""
     if not source:
         return None
@@ -532,7 +562,12 @@ def _image_to_data_uri(source: Optional[Union[str, Path]]) -> Optional[str]:
             return None
         if src_str.lower().startswith("data:"):
             try:
-                return validate_data_uri(src_str)
+                validated_uri = validate_data_uri(src_str)
+                if stretch_svg and validated_uri.startswith("data:image/svg+xml;base64,"):
+                    raw_svg = base64.b64decode(validated_uri.split(",", 1)[1])
+                    stretched_b64 = base64.b64encode(_make_svg_stretchable(raw_svg)).decode("ascii")
+                    return f"data:image/svg+xml;base64,{stretched_b64}"
+                return validated_uri
             except ValueError as exc:
                 logger.warning("Blocked unsafe or invalid data URI: %s", exc)
                 return None
@@ -558,6 +593,8 @@ def _image_to_data_uri(source: Optional[Union[str, Path]]) -> Optional[str]:
 
     try:
         data = path.read_bytes()
+        if stretch_svg and suffix == ".svg":
+            data = _make_svg_stretchable(data)
         encoded = base64.b64encode(data).decode("ascii")
         return f"data:{mime_type};base64,{encoded}"
     except Exception as exc:
@@ -685,11 +722,11 @@ def _build_banner_svg(
 ) -> str:
     validate_canvas_dimensions(width, height)
     bg_style = validate_background_css(background_css, DEFAULT_BG_STYLE)
-    bg_data_uri = _image_to_data_uri(background_asset_path)
+    bg_data_uri = _image_to_data_uri(background_asset_path, stretch_svg=True)
     if bg_data_uri:
         bg_element = (
             f'<image href="{bg_data_uri}" xlink:href="{bg_data_uri}" x="0" y="0" '
-            f'width="{width}" height="{height}" preserveAspectRatio="xMidYMid slice" />'
+            f'width="{width}" height="{height}" preserveAspectRatio="none" />'
         )
     else:
         bg_element = (
@@ -780,9 +817,12 @@ def _build_banner_html(
 ) -> str:
     validate_canvas_dimensions(width, height)
     bg_style = validate_background_css(background_css, DEFAULT_BG_STYLE)
-    bg_data_uri = _image_to_data_uri(background_asset_path)
+    bg_data_uri = _image_to_data_uri(background_asset_path, stretch_svg=True)
     if bg_data_uri:
-        bg_style = f"background-image: url('{bg_data_uri}'); background-size: cover; background-position: center;"
+        bg_style = (
+            f"background-image: url('{bg_data_uri}'); "
+            f"background-size: 100% 100%; background-position: center; background-repeat: no-repeat;"
+        )
 
     elements_html: List[str] = []
 
