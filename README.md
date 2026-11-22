@@ -131,6 +131,7 @@ python src/main.py
 ```bash
 # 基本実行 (対話型レビューモード)
 python src/main.py --objective "春の新生活応援キャンペーン セールバナー" --width 300 --height 250
+python src/main.py --objective "年金は将来もらえるの?? コラム掲載告知 コラムの概要を伝える記述付き" --width 300 --height 700
 python src/main.py --objective "AI SaaS ツールの新規ユーザー獲得" --width 300 --height 250
 
 # 英語テーマ名を直接指定（未指定時はobjectiveから自動生成されます）
