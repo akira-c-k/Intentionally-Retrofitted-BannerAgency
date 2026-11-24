@@ -2,7 +2,7 @@
 
 # Intentionally Retrofitted BannerAgency
 
-A multi-agent production system where an Orchestrator sequentially invokes multiple specialized LLM agents (powered by OpenAI) as tools, collaborating to automatically generate high-quality advertising banners (**HTML / SVG / High-Resolution PNG**).
+A multi-agent production system where an Orchestrator sequentially invokes multiple specialized LLM agents (powered by OpenAI) as tools, collaborating to automatically generate high-quality advertising banners (**HTML / SVG**).
 
 * While implementing the design philosophy of BannerAgency, this system **intentionally avoids the use of text-to-image (T2I) generative AI**, adopting a **vector & HTML-first** banner generation pipeline leveraging metadata search over existing assets and refined CSS/SVG layouts.
 
@@ -23,7 +23,7 @@ flowchart TD
         BgDesigner["2. Background Designer<br/>Metadata search / CSS gradient fallback"]
         FrontDesigner["3. Front Designer<br/>Catchphrase creation, logo/decoration selection, initial layout"]
         FrontRefiner["4. Front Refiner<br/>Overlap resolution & bounding box optimization"]
-        Developer["5. Developer & Renderer<br/>HTML/SVG construction & Playwright PNG rendering"]
+        Developer["5. Developer & Renderer<br/>HTML/SVG construction & rendering"]
     end
 
     Orchestrator -->|create_banner_strategy| Strategist
@@ -41,7 +41,7 @@ flowchart TD
     Orchestrator -->|develop_banner| Developer
     Developer -->|BannerDeveloperOutput| Orchestrator
 
-    Orchestrator --> FinalOutput(["Final Output: HTML + SVG + PNG + Review Management"])
+    Orchestrator --> FinalOutput(["Final Output: HTML + SVG + Review Management"])
 ```
 
 ### Agent Roles
@@ -50,22 +50,22 @@ flowchart TD
 3. **Background Designer (`background_designer`)**: Searches metadata JSON files in `assets/backgrounds` to select the optimal background image (or designs a refined CSS gradient if no suitable asset exists).
 4. **Front Designer (`front_designer`)**: Selects the main copy (catchphrase), sub-copy, CTA button, logo asset, decorative badge, and creates the initial layout.
 5. **Front Refiner (`front_refiner`)**: Detects and resolves coordinates, dimensions, and overlaps among elements, optimizing their placement within the canvas bounding box.
-6. **Developer & Renderer (`developer`)**: Generates editable HTML/CSS and SVG banners, and renders high-resolution PNG previews using Playwright.
+6. **Developer & Renderer (`developer`)**: Generates editable HTML/CSS and SVG banners.
 
 ---
 
 ## 2. Key Features
 
-- **Multi-Format Output (HTML / SVG / PNG)**:
-  Simultaneously exports web-ready HTML, vector-editable SVG, and high-resolution PNG for preview and ad delivery.
+- **Multi-Format Output (HTML / SVG)**:
+  Simultaneously exports web-ready HTML and vector-editable SVG.
 - **Full Portability via Base64 Data URI**:
   Local image assets, logos, and decorative badges are embedded inline into HTML and SVG as Base64 Data URIs, allowing standalone viewing without CORS restrictions or broken relative paths.
 - **2-Pass Conflict Resolution Guardrails**:
   Automatically detects and resolves overlaps between logos and decorative badges, as well as physical vertical collisions among text elements (main copy, sub-copy, and CTA).
 - **Auto-Detection of Recently Edited Files & Smart `Render`**:
-  After manually tweaking exported HTML or SVG files in an editor, executing `Render` in the interactive menu automatically detects the **most recently modified file** and immediately re-renders the PNG preview. *(Note: `playwright` is commented out by default in `requirements.txt`; please enable it if you wish to use PNG rendering).*
+  After manually tweaking exported HTML or SVG files in an editor, executing `Render` in the interactive menu automatically detects the **most recently modified file** and immediately synchronizes the latest HTML / SVG output.
 - **Sample Assets Included**:
-  Comes with ready-to-use backgrounds (5 types), logos (4 types), and decorative badges (4 types) designed for Sale, Tech, Organic, and Luxury campaigns.
+  Comes with ready-to-use backgrounds (10 types), logos (9 types), and decorative badges (9 types) designed for Sale, Tech, Organic, and Luxury campaigns.
 
 ---
 
@@ -97,14 +97,6 @@ LLM_API_KEY=your_api_key_here
 # LLM_MODEL=gpt-4o
 # Optional: Endpoint URL (automatically configured when using Gemini models; specify for Ollama or custom endpoints)
 # LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-# Optional: Default ON/OFF for Playwright PNG rendering (true/false)
-# ENABLE_PLAYWRIGHT_RENDER=false
-```
-
-### 3. (Recommended) Install Playwright Browser
-Install the Chromium browser if you want automatic PNG preview rendering (can be skipped if you only need HTML/SVG files).
-```bash
-playwright install chromium
 ```
 
 ---
@@ -115,7 +107,7 @@ playwright install chromium
 ```bash
 python src/main.py
 ```
-After launching, you will be prompted for the banner objective, dimensions, and whether to enable Playwright PNG rendering. The multi-agent system will then begin generation.
+After launching, you will be prompted for the banner objective and dimensions. The multi-agent system will then begin generation.
 
 #### Review Actions in Interactive Menu
 After each iteration completes, you can perform the following actions:
@@ -124,7 +116,7 @@ After each iteration completes, you can perform the following actions:
 | :--- | :--- |
 | **`OK` / `approve`** | Approves the current banner and finishes the creation session. |
 | **`Comment` / `c`** | Input revision requests (e.g., "Increase margin between copies", "Make CTA button yellow") to trigger the next design iteration with the agents. **Minimal difference modification is enabled by default**, strictly preserving unmentioned logos, copies, decorations, and backgrounds. |
-| **`Render` / `r`** | **Automatically detects the most recently edited HTML or SVG file** and immediately regenerates the PNG preview without calling the LLM. (You can also specify a file explicitly, e.g., `render banner_iter2.svg`). |
+| **`Render` / `r`** | **Automatically detects the most recently edited HTML or SVG file** and immediately synchronizes the latest HTML / SVG output without calling the LLM. (You can also specify a file explicitly, e.g., `render banner_iter2.svg`). |
 | **`Exit` / `quit`** | Aborts and exits the banner creation session. |
 
 ### Command Line Arguments Execution
@@ -134,9 +126,6 @@ python src/main.py --objective "Spring Campaign Sale Banner" --width 300 --heigh
 
 # Specify custom English theme name (automatically generated from objective if omitted)
 python src/main.py --objective "Spring Campaign Sale Banner" --theme spring_sale --width 300 --height 250
-
-# With Playwright PNG preview rendering enabled
-python src/main.py --objective "Cybersecurity Software Sale Banner" --width 300 --height 250 --render-png
 
 # Non-interactive mode (Automatically finishes after 1 iteration)
 python src/main.py --objective "AI SaaS User Acquisition Banner" --non-interactive
@@ -161,10 +150,8 @@ artifacts/
 │   │   └── <banner_id>/              # Session-specific output folder (e.g., 20261110_221238_spring_sale)
 │   │       ├── banner.html           # Latest iteration HTML banner (reloadable in browser)
 │   │       ├── banner.svg            # Latest iteration SVG banner
-│   │       ├── banner.png            # Latest iteration high-resolution PNG preview
 │   │       ├── banner_iter1.html     # Iteration 1 history
 │   │       ├── banner_iter1.svg
-│   │       ├── banner_iter1.png
 │   │       ├── banner_iter2.html     # Iteration 2 history
 │   │       └── ...
 │   └── graph/
@@ -176,6 +163,7 @@ artifacts/
 ## 6. Asset Structure & Adding New Assets
 
 Place image files (SVG / PNG / JPG) alongside a `.json` metadata file of the same name under the `assets/` directory. The agents will automatically search and select them.
+*Note: For security allowlisting, when adding a new `.svg` asset, also register its relative path (e.g., `"backgrounds/my_new_bg.svg"`) in `ALLOWED_SVG_ASSETS` in `src/config.py`.*
 
 ```text
 assets/

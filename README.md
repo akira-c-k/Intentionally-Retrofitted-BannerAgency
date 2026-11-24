@@ -2,7 +2,7 @@
 
 # Intentionally Retrofitted BannerAgency
 
-OpenAIのLLMを搭載した複数の専門エージェントを指揮者（Orchestrator）がツールとして順次呼び出し、協調して高品質な広告バナー（**HTML / SVG / 高解像度PNG**）を自動生成するマルチエージェント制作システムです。
+OpenAIのLLMを搭載した複数の専門エージェントを指揮者（Orchestrator）がツールとして順次呼び出し、協調して高品質な広告バナー（**HTML / SVG**）を自動生成するマルチエージェント制作システムです。
 
 * 本システムは、BannerAgencyを実装しつつも、**意図的に画像生成AI（T2I）の利用を回避**し、既存アセットのメタデータ検索および洗練されたCSS/SVGレイアウトを活用した**ベクター＆HTMLファースト**のバナー生成パイプラインを実装しています。
 
@@ -23,7 +23,7 @@ flowchart TD
         BgDesigner["2. 背景選択: Background Designer<br/>メタデータ検索 / CSSフォールバック"]
         FrontDesigner["3. コピー & 素材選定: Front Designer<br/>キャッチコピー作成・ロゴ/装飾選定・初期レイアウト"]
         FrontRefiner["4. 配置調整: Front Refiner<br/>要素重なり解消・バウンディングボックス最適化"]
-        Developer["5. 開発 & レンダラー: Developer<br/>HTML/SVG構築 & Playwright PNGレンダリング"]
+        Developer["5. 開発 & レンダラー: Developer<br/>HTML/SVG構築・レンダリング"]
     end
 
     Orchestrator -->|create_banner_strategy| Strategist
@@ -41,7 +41,7 @@ flowchart TD
     Orchestrator -->|develop_banner| Developer
     Developer -->|BannerDeveloperOutput| Orchestrator
 
-    Orchestrator --> FinalOutput(["最終出力: HTML + SVG + PNG + レビュー管理"])
+    Orchestrator --> FinalOutput(["最終出力: HTML + SVG + レビュー管理"])
 ```
 
 ### 各エージェントの役割
@@ -50,22 +50,22 @@ flowchart TD
 3. **背景画像選択 (`background_designer`)**: `assets/backgrounds` 内のメタデータJSONを検索して最適な背景画像を選定（画像がない場合は洗練されたCSSグラデーションを設計）。
 4. **キャッチコピー＆素材選定 (`front_designer`)**: メインコピー（キャッチコピー）、サブコピー、CTAボタン、ロゴ選定、装飾バッジ選定、初期レイアウトを策定。
 5. **素材配置調整 (`front_refiner`)**: 各要素の座標・サイズ・重なり（overlap）を検知・解消し、バウンディングボックス内に最適配置。
-6. **開発・レンダラー (`developer`)**: エディタブルなHTML/CSSバナーおよびSVGバナーを出力し、Playwrightによる高解像度PNG画像化を実行。
+6. **開発・レンダラー (`developer`)**: エディタブルなHTML/CSSバナーおよびSVGバナーを出力。
 
 ---
 
 ## 2. 主な特徴
 
-- **マルチフォーマット出力 (HTML / SVG / PNG)**:
-  Web表示用のHTMLだけでなく、ベクター編集可能なSVG、プレビュー・配信用の高解像度PNGを同時に自動出力します。
+- **マルチフォーマット出力 (HTML / SVG)**:
+  Web表示用のHTMLだけでなく、ベクター編集可能なSVGを同時に自動出力します。
 - **Base64 Data URI による完全なポータビリティ**:
   ローカル画像・ロゴ・装飾アセットはすべて Base64 Data URI として HTML / SVG にインライン埋め込みされるため、CORS制限や相対パス崩れを起こさずスタンドアロンで閲覧可能です。
 - **2パス衝突解決ガードレール**:
   ロゴと装飾バッジの重なり防止、縦方向に並ぶテキスト要素（メインコピー、サブコピー、CTA）の物理的な文字被りをレンダラー内部で自動検知・解消。
 - **直近編集ファイルの自動検出 & スマートな `Render`**:
-  出力された HTML や SVG をエディタで直接手動編集した後、対話メニューで `Render` を実行するだけで、**直近で更新されたファイルを自動検出**して即座に PNG プレビューを再生成します。ただし、**デフォルトではrequirements.txt内でplaywrightが有効になっていない**ため、PNGのレンダリングを行いたい場合は有効化して下さい。
+  出力された HTML や SVG をエディタで直接手動編集した後、対話メニューで `Render` を実行するだけで、**直近で更新されたファイルを自動検出**して最新の HTML / SVG 出力へ同期します。
 - **本Githubに用意したサンプルアセット**:
-  セール、テック、オーガニック、ラグジュアリーの用途に対応した背景（5種）、ロゴ（4種）、装飾バッジ（4種）を格納しています。
+  セール、テック、オーガニック、ラグジュアリーの用途に対応した背景（10種）、ロゴ（9種）、装飾バッジ（9種）を格納しています。
 
 ---
 
@@ -97,14 +97,6 @@ LLM_API_KEY=your_api_key_here
 # LLM_MODEL=gpt-4o
 # オプション: エンドポイントURL (Geminiモデル指定時は自動設定されます。Ollama等のローカル/他社利用時に指定)
 # LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-# オプション: PlaywrightによるPNG画像化のデフォルトON/OFF (true/false)
-# ENABLE_PLAYWRIGHT_RENDER=false
-```
-
-### 3. （推奨）Playwright ブラウザのインストール
-PNGプレビュー画像の自動レンダリングを行うためにインストールします（HTML/SVGファイルのみ利用する場合はスキップ可能です）。
-```bash
-playwright install chromium
 ```
 
 ---
@@ -115,7 +107,7 @@ playwright install chromium
 ```bash
 python src/main.py
 ```
-実行すると、バナーの目的、サイズ、PlaywrightによるPNG画像生成の有無を入力後、マルチエージェントによる自動生成が開始されます。
+実行すると、バナーの目的やサイズを入力後、マルチエージェントによる自動生成が開始されます。
 
 #### レビュー対話アクション
 各イテレーション完了後、以下のレビュー操作が可能です：
@@ -124,7 +116,7 @@ python src/main.py
 | :--- | :--- |
 | **`OK` / `approve`** | 現在のバナーを承認し、制作を完了します。 |
 | **`Comment` / `c`** | 修正指示（例：「コピー同士のマージンを広げて」「CTAボタンを黄色に」など）を入力し、エージェントによる次イテレーション（再設計）を実行します。**最小差分変更がデフォルト**となっており、指示のないロゴやコピー、装飾、背景はそのまま厳格に維持されます。 |
-| **`Render` / `r`** | **直近で編集された HTML または SVG ファイルを自動検出**し、LLMを介さずに PNG プレビューを即座に再生成します。（`render banner_iter2.svg` のようにファイル名を直接指定することも可能） |
+| **`Render` / `r`** | **直近で編集された HTML または SVG ファイルを自動検出**し、LLMを介さずに最新の HTML / SVG へ即座に同期・反映します。（`render banner_iter2.svg` のようにファイル名を直接指定することも可能） |
 | **`Exit` / `quit`** | バナー制作を中断・終了します。 |
 
 ### コマンドライン引数での直接実行
@@ -136,9 +128,6 @@ python src/main.py --objective "AI SaaS ツールの新規ユーザー獲得" --
 
 # 英語テーマ名を直接指定（未指定時はobjectiveから自動生成されます）
 python src/main.py --objective "春の新生活応援キャンペーン セールバナー" --theme spring_sale --width 300 --height 250
-
-# PlaywrightによるPNGプレビューも有効化
-python src/main.py --objective "セキュリティソフト セールバナー" --width 300 --height 250 --render-png
 
 # 非対話型（1イテレーションで自動終了）
 python src/main.py --objective "AI SaaS ツールの新規ユーザー獲得" --non-interactive
@@ -271,10 +260,8 @@ artifacts/
 │   │   └── <banner_id>/              # セッション固有の出力フォルダ（例: 20261110_221238_spring_sale）
 │   │       ├── banner.html           # 最新イテレーションのHTMLバナー（ブラウザで再読み込み可能）
 │   │       ├── banner.svg            # 最新イテレーションのSVGバナー
-│   │       ├── banner.png            # 最新イテレーションの高解像度PNGプレビュー
 │   │       ├── banner_iter1.html     # イテレーション1の履歴
 │   │       ├── banner_iter1.svg
-│   │       ├── banner_iter1.png
 │   │       ├── banner_iter2.html     # イテレーション2の履歴
 │   │       └── ...
 └── graph/
@@ -286,6 +273,7 @@ artifacts/
 ## 7. アセットの構成と追加方法
 
 `assets/` ディレクトリ配下に、画像ファイル（SVG / PNG / JPG）と同名の `.json` メタデータファイルを配置することで、エージェントが自動的に検索・選定できるようになります。
+※ セキュリティ上のホワイトリスト制限により、新規の `.svg` アセットを追加する場合は `src/config.py` の `ALLOWED_SVG_ASSETS` リストにも相対パス（例: `"backgrounds/my_new_bg.svg"`）を追記してください。
 
 ```text
 assets/
