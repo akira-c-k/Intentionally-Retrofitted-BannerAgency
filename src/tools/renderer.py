@@ -5,6 +5,7 @@ import hashlib
 import html
 import json
 import logging
+import math
 import mimetypes
 import re
 import shutil
@@ -29,6 +30,12 @@ from src.config import (
     MAX_FOREGROUND_ELEMENTS,
     MAX_HEIGHT,
     MAX_PIXELS,
+    MAX_SVG_DEPTH,
+    MAX_SVG_ELEMENTS,
+    MAX_SVG_FILTER_OFFSET,
+    MAX_SVG_FILTER_REGION_PCT,
+    MAX_SVG_FILTERS,
+    MAX_SVG_STD_DEVIATION,
     MAX_WIDTH,
 )
 from src.models import BannerRenderElement
@@ -144,12 +151,6 @@ _ALLOWED_SVG_TAGS = {
     "clippath",
     "filter",
     "fedropshadow",
-    "fegaussianblur",
-    "feoffset",
-    "feblend",
-    "fecolormatrix",
-    "femerge",
-    "femergenode",
 }
 _ALLOWED_SVG_ATTRS = {
     "xmlns",
@@ -200,12 +201,7 @@ _ALLOWED_SVG_ATTRS = {
     "stddeviation",
     "flood-color",
     "flood-opacity",
-    "in",
-    "in2",
-    "result",
-    "mode",
     "type",
-    "values",
     "font-family",
     "font-size",
     "font-weight",
@@ -215,6 +211,7 @@ _ALLOWED_SVG_ATTRS = {
     "dominant-baseline",
     "clip-path",
 }
+_ALLOWED_SVG_FILTER_UNITS = {"userspaceonuse", "objectboundingbox"}
 _SVG_INTERNAL_URL_RE = re.compile(r"^url\(\s*#[A-Za-z0-9_-]+\s*\)$")
 _DATA_URI_RE = re.compile(
     r"^data:(image/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/=\s]+)$",
@@ -233,7 +230,7 @@ def _safe_role(value: Any) -> str:
 
 
 def validate_canvas_dimensions(width: int, height: int) -> None:
-    """Validate banner canvas width, height, and total pixel count (SEC-005)."""
+    """Validate banner canvas width, height, and total pixel count."""
     if not isinstance(width, int) or isinstance(width, bool) or not (1 <= width <= MAX_WIDTH):
         raise ValueError(f"Invalid width: {width} (must be between 1 and {MAX_WIDTH})")
     if not isinstance(height, int) or isinstance(height, bool) or not (1 <= height <= MAX_HEIGHT):
@@ -253,7 +250,7 @@ def _has_dangerous_css_tokens(value: str) -> bool:
 
 
 def validate_css_color(value: Any, fallback: str = "#111827") -> str:
-    """Validate a CSS color value against an allowlist of hex, rgb/rgba/hsl/hsla, and safe keywords (SEC-001)."""
+    """Validate a CSS color value against an allowlist of hex, rgb/rgba/hsl/hsla, and safe keywords."""
     if not isinstance(value, str):
         return fallback
     cleaned = value.strip().rstrip(";").strip()
@@ -269,7 +266,7 @@ def validate_css_color(value: Any, fallback: str = "#111827") -> str:
 
 
 def validate_css_background(value: Any, fallback: str = "transparent") -> str:
-    """Validate an element CSS background value (color or safe gradient, no url() or injection) (SEC-001)."""
+    """Validate an element CSS background value (color or safe gradient, no url() or injection)."""
     if not isinstance(value, str):
         return fallback
     cleaned = value.strip().rstrip(";").strip()
@@ -288,7 +285,7 @@ def validate_css_background(value: Any, fallback: str = "transparent") -> str:
 
 
 def validate_background_css(value: Any, fallback: str = DEFAULT_BG_STYLE) -> str:
-    """Validate container background_css declaration against CSS injection (SEC-001, SEC-003)."""
+    """Validate container background_css declaration against CSS injection."""
     if not isinstance(value, str) or not value.strip():
         return fallback
     cleaned = value.strip()
@@ -504,7 +501,7 @@ def _logo_obstacle_rect(*, canvas_width: int, canvas_height: int) -> Dict[str, i
 
 
 def _validate_decoded_image_dimensions(width: int, height: int) -> None:
-    """Validate decoded image dimensions and pixel count against MAX_WIDTH, MAX_HEIGHT, and MAX_PIXELS (SEC-012)."""
+    """Validate decoded image dimensions and pixel count against MAX_WIDTH, MAX_HEIGHT, and MAX_PIXELS."""
     if not (1 <= width <= MAX_WIDTH) or not (1 <= height <= MAX_HEIGHT):
         raise ValueError(
             f"Decoded image dimensions {width}x{height} exceed allowed bounds ({MAX_WIDTH}x{MAX_HEIGHT})"
@@ -594,8 +591,64 @@ def _parse_svg_length_px(raw: Optional[str]) -> Optional[int]:
     return int(float(m.group(1)))
 
 
+def _validate_svg_filter_attribute(tag_name: str, local_attr: str, val_str: str) -> None:
+    """Validate SVG filter-related numeric bounds and enum values to prevent CPU/memory exhaustion."""
+    if local_attr == "stddeviation":
+        parts = re.split(r"[\s,]+", val_str)
+        if not parts or len(parts) > 2:
+            raise ValueError(f"Invalid SVG stdDeviation value: {val_str}")
+        for part in parts:
+            try:
+                val = float(part)
+            except ValueError as exc:
+                raise ValueError(f"Non-numeric SVG stdDeviation value: {val_str}") from exc
+            if not math.isfinite(val) or not (0.0 <= val <= MAX_SVG_STD_DEVIATION):
+                raise ValueError(
+                    f"SVG stdDeviation ({val_str}) out of allowed bounds (0..{MAX_SVG_STD_DEVIATION})"
+                )
+    elif local_attr in {"dx", "dy"}:
+        try:
+            val = float(val_str)
+        except ValueError as exc:
+            raise ValueError(f"Non-numeric SVG {local_attr} value: {val_str}") from exc
+        if not math.isfinite(val) or not (-MAX_SVG_FILTER_OFFSET <= val <= MAX_SVG_FILTER_OFFSET):
+            raise ValueError(
+                f"SVG {local_attr} ({val_str}) out of allowed bounds (-{MAX_SVG_FILTER_OFFSET}..{MAX_SVG_FILTER_OFFSET})"
+            )
+    elif local_attr in {"filterunits", "primitiveunits"}:
+        if val_str.lower() not in _ALLOWED_SVG_FILTER_UNITS:
+            raise ValueError(f"Invalid SVG {local_attr} value: {val_str}")
+    elif local_attr == "flood-opacity":
+        try:
+            val = float(val_str)
+        except ValueError as exc:
+            raise ValueError(f"Non-numeric SVG flood-opacity value: {val_str}") from exc
+        if not math.isfinite(val) or not (0.0 <= val <= 1.0):
+            raise ValueError(f"SVG flood-opacity ({val_str}) out of allowed bounds (0.0..1.0)")
+    elif tag_name == "filter" and local_attr in {"x", "y", "width", "height"}:
+        cleaned = val_str.lower()
+        is_pct = cleaned.endswith("%")
+        num_str = cleaned[:-1] if is_pct else (cleaned[:-2] if cleaned.endswith("px") else cleaned)
+        try:
+            val = float(num_str)
+        except ValueError as exc:
+            raise ValueError(f"Invalid SVG filter {local_attr} value: {val_str}") from exc
+        if not math.isfinite(val):
+            raise ValueError(f"Non-finite SVG filter {local_attr} value: {val_str}")
+        if is_pct:
+            if local_attr in {"x", "y"} and not (-MAX_SVG_FILTER_REGION_PCT <= val <= MAX_SVG_FILTER_REGION_PCT):
+                raise ValueError(f"SVG filter {local_attr} percentage out of allowed bounds: {val_str}")
+            if local_attr in {"width", "height"} and not (0.0 < val <= MAX_SVG_FILTER_REGION_PCT):
+                raise ValueError(f"SVG filter {local_attr} percentage out of allowed bounds: {val_str}")
+        else:
+            if local_attr in {"x", "y"} and not (-MAX_WIDTH <= val <= MAX_WIDTH):
+                raise ValueError(f"SVG filter {local_attr} coordinate out of allowed bounds: {val_str}")
+            if local_attr in {"width", "height"} and not (0.0 < val <= MAX_WIDTH):
+                raise ValueError(f"SVG filter {local_attr} dimension out of allowed bounds: {val_str}")
+
+
 def _validate_svg_structure(svg_text: str) -> None:
-    """Parse SVG with ElementTree and enforce strict tag, attribute, internal-only url(#id), and dimension allowlists (SEC-009, SEC-012)."""
+    """Parse SVG with ElementTree and enforce strict tag, attribute, internal-only url(#id), filter bounds, element count, and nesting depth limits."""
     if "<svg" not in svg_text.lower():
         raise ValueError("File does not contain a valid <svg> root element")
     if _DANGEROUS_SVG_PATTERN.search(svg_text):
@@ -610,7 +663,7 @@ def _validate_svg_structure(svg_text: str) -> None:
     if root_tag != "svg":
         raise ValueError(f"Invalid SVG root element: {root_tag}")
 
-    # Validate SVG dimensions / viewBox against MAX_WIDTH, MAX_HEIGHT, MAX_PIXELS (SEC-012)
+    # Validate SVG dimensions / viewBox against MAX_WIDTH, MAX_HEIGHT, MAX_PIXELS
     svg_w = _parse_svg_length_px(root.attrib.get("width"))
     svg_h = _parse_svg_length_px(root.attrib.get("height"))
     if svg_w is not None or svg_h is not None:
@@ -628,10 +681,27 @@ def _validate_svg_structure(svg_text: str) -> None:
             raise ValueError(f"Invalid SVG viewBox dimensions: {view_box}") from exc
         _validate_decoded_image_dimensions(vb_w, vb_h)
 
-    for elem in root.iter():
+    element_count = 0
+    filter_count = 0
+    stack: List[Tuple[ET.Element, int]] = [(root, 1)]
+
+    while stack:
+        elem, depth = stack.pop()
+        if depth > MAX_SVG_DEPTH:
+            raise ValueError(f"SVG XML nesting depth ({depth}) exceeds limit ({MAX_SVG_DEPTH})")
+
+        element_count += 1
+        if element_count > MAX_SVG_ELEMENTS:
+            raise ValueError(f"SVG element count ({element_count}) exceeds limit ({MAX_SVG_ELEMENTS})")
+
         tag_name = elem.tag.split("}")[-1].lower()
         if tag_name not in _ALLOWED_SVG_TAGS:
             raise ValueError(f"Disallowed SVG element '<{tag_name}>' detected")
+
+        if tag_name == "filter":
+            filter_count += 1
+            if filter_count > MAX_SVG_FILTERS:
+                raise ValueError(f"SVG filter count ({filter_count}) exceeds limit ({MAX_SVG_FILTERS})")
 
         for attr_key, attr_val in elem.attrib.items():
             local_attr = attr_key.split("}")[-1].lower()
@@ -647,9 +717,14 @@ def _validate_svg_structure(svg_text: str) -> None:
                 if not _SVG_INTERNAL_URL_RE.fullmatch(val_str):
                     raise ValueError(f"Disallowed url() reference in SVG attribute '{local_attr}': {val_str}")
 
+            _validate_svg_filter_attribute(tag_name, local_attr, val_str)
+
+        for child in elem:
+            stack.append((child, depth + 1))
+
 
 def _validate_image_bytes(data: bytes, suffix: str) -> None:
-    """Validate image file size, binary signature, decoded pixel dimensions, and SVG AST allowlist (SEC-002, SEC-003, SEC-004, SEC-005, SEC-009, SEC-012)."""
+    """Validate image file size, binary signature, decoded pixel dimensions, and SVG AST allowlist."""
     if not data or len(data) > MAX_ASSET_FILE_BYTES:
         raise ValueError(f"Asset data size ({len(data)} bytes) is empty or exceeds limit ({MAX_ASSET_FILE_BYTES} bytes)")
 
@@ -674,7 +749,7 @@ def _validate_image_bytes(data: bytes, suffix: str) -> None:
 
 
 def validate_asset_path(source: Union[str, Path]) -> Path:
-    """Validate that an asset path resolves strictly inside ASSETS_DIR, is on ALLOWED_SVG_ASSETS when SVG, and is a valid image file (SEC-002, SEC-009)."""
+    """Validate that an asset path resolves strictly inside ASSETS_DIR, is on ALLOWED_SVG_ASSETS when SVG, and is a valid image file."""
     asset_root = ASSETS_DIR.resolve()
 
     if isinstance(source, str):
@@ -734,7 +809,7 @@ def validate_asset_path(source: Union[str, Path]) -> Path:
 
 
 def validate_data_uri(data_uri: str) -> str:
-    """Validate a base64 image data: URI for MIME allowlist, size limit, and content safety (SEC-004)."""
+    """Validate a base64 image data: URI for MIME allowlist, size limit, and content safety."""
     if not isinstance(data_uri, str):
         raise ValueError("Data URI must be a string")
     cleaned = data_uri.strip()
