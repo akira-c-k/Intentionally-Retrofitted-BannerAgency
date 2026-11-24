@@ -17,7 +17,7 @@ _ALLOWED_LOCAL_HTTP_HOSTS = {
 
 
 def validate_llm_base_url(base_url: str) -> str:
-    """Validate LLM_BASE_URL using urlparse and exact hostname check (SEC-008, SEC-011)."""
+    """Validate LLM_BASE_URL using urlparse and exact hostname check."""
     cleaned = base_url.strip()
     if not cleaned:
         raise ValueError("LLM_BASE_URL cannot be empty")
@@ -117,18 +117,24 @@ DEFAULT_HEIGHT = 250
 BANNER_MAX_ITERATIONS = 5
 BANNER_PREVIOUS_HTML_MAX_CHARS = 30_000
 
-# Security & resource limits (SEC-002, SEC-004, SEC-005, SEC-006)
+# Security & resource limits
 MAX_WIDTH = 4096
 MAX_HEIGHT = 4096
 MAX_PIXELS = 16_000_000
 MAX_ASSET_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_FOREGROUND_ELEMENTS = 50
+MAX_SVG_ELEMENTS = 2000
+MAX_SVG_DEPTH = 32
+MAX_SVG_FILTERS = 20
+MAX_SVG_STD_DEVIATION = 32.0
+MAX_SVG_FILTER_OFFSET = 100.0
+MAX_SVG_FILTER_REGION_PCT = 200.0
 
 
 # Supported image extensions for assets
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".svg")
 
-# Explicit allowlist of loadable SVG assets relative to ASSETS_DIR (SEC-009)
+# Explicit allowlist of loadable SVG assets relative to ASSETS_DIR
 ALLOWED_SVG_ASSETS: tuple[str, ...] = (
     # Backgrounds (10)
     "backgrounds/autumn_harvest_bg.svg",
