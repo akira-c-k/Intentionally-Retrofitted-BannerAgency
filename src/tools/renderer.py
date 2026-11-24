@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import hashlib
 import html
@@ -9,15 +8,17 @@ import logging
 import mimetypes
 import re
 import shutil
-import threading
+import struct
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional, Sequence, Union
+from typing import Annotated, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from pydantic import Field
 from agents import function_tool
 
 from src.config import (
+    ALLOWED_SVG_ASSETS,
     ASSETS_DIR,
     BANNER_OUTPUT_DIR,
     BASE_DIR,
@@ -29,7 +30,6 @@ from src.config import (
     MAX_HEIGHT,
     MAX_PIXELS,
     MAX_WIDTH,
-    is_playwright_enabled_by_default,
 )
 from src.models import BannerRenderElement
 
@@ -118,11 +118,104 @@ _SAFE_BORDER_RE = re.compile(
 )
 _SAFE_LETTER_SPACING_RE = re.compile(r"^(?:normal|-?\d+(?:\.\d+)?(?:px|em|rem|%))$", re.IGNORECASE)
 _DANGEROUS_SVG_PATTERN = re.compile(
-    r"(?:<\s*script\b|javascript\s*:|vbscript\s*:|\bon[a-z]+\s*=|<\s*(?:iframe|object|embed|foreignobject)\b|"
-    r"(?:xlink:href|href|src)\s*=\s*['\"]?\s*(?:https?:|//|data:text/html)|"
-    r"url\s*\(\s*['\"]?\s*(?:https?:|//)|@import)",
+    r"(?:<!DOCTYPE\b|<!ENTITY\b|<\?(?!xml\b)|<\s*script\b|javascript\s*:|vbscript\s*:|file\s*:|"
+    r"\bon[a-z]+\s*=|<\s*(?:iframe|object|embed|foreignobject|image|use|a|style)\b|"
+    r"(?:xlink:href|href|src)\s*=|url\s*\(\s*['\"]?\s*(?!#)|@import)",
     re.IGNORECASE,
 )
+_ALLOWED_SVG_TAGS = {
+    "svg",
+    "defs",
+    "lineargradient",
+    "radialgradient",
+    "stop",
+    "rect",
+    "circle",
+    "ellipse",
+    "line",
+    "polyline",
+    "polygon",
+    "path",
+    "g",
+    "text",
+    "tspan",
+    "title",
+    "desc",
+    "clippath",
+    "filter",
+    "fedropshadow",
+    "fegaussianblur",
+    "feoffset",
+    "feblend",
+    "fecolormatrix",
+    "femerge",
+    "femergenode",
+}
+_ALLOWED_SVG_ATTRS = {
+    "xmlns",
+    "width",
+    "height",
+    "viewbox",
+    "preserveaspectratio",
+    "id",
+    "class",
+    "x",
+    "y",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "cx",
+    "cy",
+    "fx",
+    "fy",
+    "r",
+    "rx",
+    "ry",
+    "d",
+    "points",
+    "fill",
+    "fill-opacity",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "stroke-opacity",
+    "opacity",
+    "transform",
+    "offset",
+    "stop-color",
+    "stop-opacity",
+    "gradientunits",
+    "gradienttransform",
+    "spreadmethod",
+    "filter",
+    "filterunits",
+    "primitiveunits",
+    "dx",
+    "dy",
+    "stddeviation",
+    "flood-color",
+    "flood-opacity",
+    "in",
+    "in2",
+    "result",
+    "mode",
+    "type",
+    "values",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "letter-spacing",
+    "text-anchor",
+    "dominant-baseline",
+    "clip-path",
+}
+_SVG_INTERNAL_URL_RE = re.compile(r"^url\(\s*#[A-Za-z0-9_-]+\s*\)$")
 _DATA_URI_RE = re.compile(
     r"^data:(image/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/=\s]+)$",
     re.IGNORECASE,
@@ -410,36 +503,178 @@ def _logo_obstacle_rect(*, canvas_width: int, canvas_height: int) -> Dict[str, i
     }
 
 
+def _validate_decoded_image_dimensions(width: int, height: int) -> None:
+    """Validate decoded image dimensions and pixel count against MAX_WIDTH, MAX_HEIGHT, and MAX_PIXELS (SEC-012)."""
+    if not (1 <= width <= MAX_WIDTH) or not (1 <= height <= MAX_HEIGHT):
+        raise ValueError(
+            f"Decoded image dimensions {width}x{height} exceed allowed bounds ({MAX_WIDTH}x{MAX_HEIGHT})"
+        )
+    if width * height > MAX_PIXELS:
+        raise ValueError(
+            f"Decoded image pixel count ({width * height}) exceeds limit ({MAX_PIXELS} pixels)"
+        )
+
+
+def _extract_png_dimensions(data: bytes) -> Tuple[int, int]:
+    if len(data) < 24 or not data.startswith(b"\x89PNG\r\n\x1a\n") or data[12:16] != b"IHDR":
+        raise ValueError("Invalid PNG file header or missing IHDR chunk")
+    width, height = struct.unpack(">II", data[16:24])
+    return int(width), int(height)
+
+
+def _extract_jpeg_dimensions(data: bytes) -> Tuple[int, int]:
+    if len(data) < 4 or not data.startswith(b"\xff\xd8\xff"):
+        raise ValueError("Invalid JPEG file header")
+    pos = 2
+    n = len(data)
+    sof_markers = {
+        0xC0, 0xC1, 0xC2, 0xC3,
+        0xC5, 0xC6, 0xC7,
+        0xC9, 0xCA, 0xCB,
+        0xCD, 0xCE, 0xCF,
+    }
+    while pos < n - 1:
+        if data[pos] != 0xFF:
+            pos += 1
+            continue
+        while pos < n and data[pos] == 0xFF:
+            pos += 1
+        if pos >= n:
+            break
+        marker = data[pos]
+        pos += 1
+        if marker in {0xD8, 0xD9, 0x01} or (0xD0 <= marker <= 0xD7):
+            continue
+        if pos + 2 > n:
+            break
+        seg_len = struct.unpack(">H", data[pos : pos + 2])[0]
+        if seg_len < 2 or pos + seg_len > n:
+            break
+        if marker in sof_markers:
+            if seg_len < 7:
+                raise ValueError("Truncated JPEG SOF segment")
+            height, width = struct.unpack(">HH", data[pos + 3 : pos + 7])
+            return int(width), int(height)
+        pos += seg_len
+    raise ValueError("Invalid JPEG structure: missing SOF dimensions")
+
+
+def _extract_webp_dimensions(data: bytes) -> Tuple[int, int]:
+    if len(data) < 30 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        raise ValueError("Invalid WebP file header")
+    chunk = data[12:16]
+    if chunk == b"VP8 ":
+        if data[23:26] != b"\x9d\x01\x2a":
+            raise ValueError("Invalid WebP VP8 frame header")
+        raw_w, raw_h = struct.unpack("<HH", data[26:30])
+        return int(raw_w & 0x3FFF), int(raw_h & 0x3FFF)
+    if chunk == b"VP8L":
+        if data[20] != 0x2F:
+            raise ValueError("Invalid WebP VP8L signature")
+        b0, b1, b2, b3 = data[21:25]
+        width = 1 + (((b1 & 0x3F) << 8) | b0)
+        height = 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6))
+        return width, height
+    if chunk == b"VP8X":
+        width = 1 + int.from_bytes(data[24:27], "little")
+        height = 1 + int.from_bytes(data[27:30], "little")
+        return width, height
+    raise ValueError("Unsupported WebP chunk format")
+
+
+def _parse_svg_length_px(raw: Optional[str]) -> Optional[int]:
+    if not raw:
+        return None
+    cleaned = raw.strip().lower()
+    if cleaned.endswith("%"):
+        return None
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)(?:px)?", cleaned)
+    if not m:
+        return None
+    return int(float(m.group(1)))
+
+
+def _validate_svg_structure(svg_text: str) -> None:
+    """Parse SVG with ElementTree and enforce strict tag, attribute, internal-only url(#id), and dimension allowlists (SEC-009, SEC-012)."""
+    if "<svg" not in svg_text.lower():
+        raise ValueError("File does not contain a valid <svg> root element")
+    if _DANGEROUS_SVG_PATTERN.search(svg_text):
+        raise ValueError("Unsafe SVG content detected (scripts, event handlers, or external/file URLs are forbidden)")
+
+    try:
+        root = ET.fromstring(svg_text)
+    except ET.ParseError as exc:
+        raise ValueError(f"Malformed SVG XML: {exc}") from exc
+
+    root_tag = root.tag.split("}")[-1].lower()
+    if root_tag != "svg":
+        raise ValueError(f"Invalid SVG root element: {root_tag}")
+
+    # Validate SVG dimensions / viewBox against MAX_WIDTH, MAX_HEIGHT, MAX_PIXELS (SEC-012)
+    svg_w = _parse_svg_length_px(root.attrib.get("width"))
+    svg_h = _parse_svg_length_px(root.attrib.get("height"))
+    if svg_w is not None or svg_h is not None:
+        _validate_decoded_image_dimensions(svg_w or 1, svg_h or 1)
+
+    view_box = root.attrib.get("viewBox") or root.attrib.get("viewbox")
+    if view_box:
+        parts = re.split(r"[\s,]+", view_box.strip())
+        if len(parts) != 4:
+            raise ValueError(f"Invalid SVG viewBox dimensions: {view_box}")
+        try:
+            vb_w = int(float(parts[2]))
+            vb_h = int(float(parts[3]))
+        except ValueError as exc:
+            raise ValueError(f"Invalid SVG viewBox dimensions: {view_box}") from exc
+        _validate_decoded_image_dimensions(vb_w, vb_h)
+
+    for elem in root.iter():
+        tag_name = elem.tag.split("}")[-1].lower()
+        if tag_name not in _ALLOWED_SVG_TAGS:
+            raise ValueError(f"Disallowed SVG element '<{tag_name}>' detected")
+
+        for attr_key, attr_val in elem.attrib.items():
+            local_attr = attr_key.split("}")[-1].lower()
+            if local_attr.startswith("on") or local_attr not in _ALLOWED_SVG_ATTRS:
+                raise ValueError(f"Disallowed SVG attribute '{local_attr}' on '<{tag_name}>'")
+
+            val_str = attr_val.strip()
+            val_lower = val_str.lower()
+            if any(scheme in val_lower for scheme in ("file:", "http:", "https:", "javascript:", "vbscript:", "data:")):
+                if local_attr != "xmlns":
+                    raise ValueError(f"Disallowed URI scheme in SVG attribute '{local_attr}'")
+            if "url(" in val_lower:
+                if not _SVG_INTERNAL_URL_RE.fullmatch(val_str):
+                    raise ValueError(f"Disallowed url() reference in SVG attribute '{local_attr}': {val_str}")
+
+
 def _validate_image_bytes(data: bytes, suffix: str) -> None:
-    """Validate image file size, binary signature (magic bytes), or SVG markup safety (SEC-002, SEC-003, SEC-004, SEC-005)."""
+    """Validate image file size, binary signature, decoded pixel dimensions, and SVG AST allowlist (SEC-002, SEC-003, SEC-004, SEC-005, SEC-009, SEC-012)."""
     if not data or len(data) > MAX_ASSET_FILE_BYTES:
         raise ValueError(f"Asset data size ({len(data)} bytes) is empty or exceeds limit ({MAX_ASSET_FILE_BYTES} bytes)")
 
     ext = suffix.lower()
     if ext == ".png":
-        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise ValueError("Invalid PNG file header")
+        w, h = _extract_png_dimensions(data)
+        _validate_decoded_image_dimensions(w, h)
     elif ext in {".jpg", ".jpeg"}:
-        if not data.startswith(b"\xff\xd8\xff"):
-            raise ValueError("Invalid JPEG file header")
+        w, h = _extract_jpeg_dimensions(data)
+        _validate_decoded_image_dimensions(w, h)
     elif ext == ".webp":
-        if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
-            raise ValueError("Invalid WebP file header")
+        w, h = _extract_webp_dimensions(data)
+        _validate_decoded_image_dimensions(w, h)
     elif ext == ".svg":
         try:
             svg_text = data.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise ValueError("Invalid UTF-8 encoding in SVG file") from exc
-        if "<svg" not in svg_text.lower():
-            raise ValueError("File does not contain a valid <svg> root element")
-        if _DANGEROUS_SVG_PATTERN.search(svg_text):
-            raise ValueError("Unsafe SVG content detected (scripts, event handlers, or external URLs are forbidden)")
+        _validate_svg_structure(svg_text)
     else:
         raise ValueError(f"Unsupported image extension: {ext}")
 
 
 def validate_asset_path(source: Union[str, Path]) -> Path:
-    """Validate that an asset path resolves strictly inside ASSETS_DIR and is a valid, safe image file (SEC-002)."""
+    """Validate that an asset path resolves strictly inside ASSETS_DIR, is on ALLOWED_SVG_ASSETS when SVG, and is a valid image file (SEC-002, SEC-009)."""
     asset_root = ASSETS_DIR.resolve()
 
     if isinstance(source, str):
@@ -484,6 +719,11 @@ def validate_asset_path(source: Union[str, Path]) -> Path:
     suffix = resolved.suffix.lower()
     if suffix not in IMAGE_EXTENSIONS:
         raise ValueError(f"Unsupported asset extension '{suffix}' for {source}")
+
+    if suffix == ".svg":
+        rel_posix = resolved.relative_to(asset_root).as_posix()
+        if rel_posix not in ALLOWED_SVG_ASSETS:
+            raise ValueError(f"SVG asset '{rel_posix}' is not in ALLOWED_SVG_ASSETS allowlist")
 
     file_size = resolved.stat().st_size
     if file_size <= 0 or file_size > MAX_ASSET_FILE_BYTES:
@@ -911,77 +1151,6 @@ def _build_banner_html(
 """
 
 
-async def _render_file_to_png_async(
-    source_path: Path,
-    png_path: Path,
-    *,
-    width: int,
-    height: int,
-) -> None:
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch()
-        try:
-            page = await browser.new_page(
-                viewport={"width": width, "height": height},
-                device_scale_factor=2,  # high-dpi screenshot
-            )
-            await page.goto(source_path.as_uri(), wait_until="networkidle")
-            await page.screenshot(path=str(png_path), full_page=False)
-        finally:
-            await browser.close()
-
-
-def _run_async_render_in_thread(
-    source_path: Path,
-    png_path: Path,
-    *,
-    width: int,
-    height: int,
-) -> None:
-    error: Optional[BaseException] = None
-
-    def render() -> None:
-        nonlocal error
-        try:
-            asyncio.run(
-                _render_file_to_png_async(
-                    source_path,
-                    png_path,
-                    width=width,
-                    height=height,
-                )
-            )
-        except BaseException as exc:
-            error = exc
-
-    thread = threading.Thread(target=render)
-    thread.start()
-    thread.join()
-
-    if error is not None:
-        raise error
-
-
-def _render_file_to_png(
-    source_path: Path,
-    png_path: Path,
-    *,
-    width: int,
-    height: int,
-) -> bool:
-    try:
-        _run_async_render_in_thread(source_path, png_path, width=width, height=height)
-        return True
-    except Exception as exc:
-        logger.warning(f"Playwright rendering failed or not configured: {exc}")
-        return False
-
-
-_render_html_to_png = _render_file_to_png
-
-
 def render_banner_files(
     *,
     objective: str,
@@ -995,6 +1164,7 @@ def render_banner_files(
     iteration: int = 1,
     enable_playwright: Optional[bool] = None,
 ) -> Dict[str, Any]:
+    del enable_playwright
     validate_canvas_dimensions(width, height)
     safe_iteration = max(1, min(_int_value(iteration, 1), 100))
     foreground_elements_list = [
@@ -1036,7 +1206,6 @@ def render_banner_files(
 
     html_path = output_dir / "banner.html"
     svg_path = output_dir / "banner.svg"
-    png_path = output_dir / "banner.png"
 
     iter_html_path = output_dir / f"banner_iter{safe_iteration}.html"
     iter_svg_path = output_dir / f"banner_iter{safe_iteration}.svg"
@@ -1065,31 +1234,11 @@ def render_banner_files(
     svg_path.write_text(svg_content, encoding="utf-8")
     iter_svg_path.write_text(svg_content, encoding="utf-8")
 
-    # Determine whether to run Playwright
-    should_render_png = (
-        enable_playwright
-        if enable_playwright is not None
-        else is_playwright_enabled_by_default()
-    )
-
-    rendered_png: Optional[str] = None
-    notes = "Rendered editable HTML and SVG banners."
-
-    if should_render_png:
-        success = _render_file_to_png(html_path, png_path, width=width, height=height)
-        if success:
-            rendered_png = str(png_path)
-            notes += " Generated PNG preview with Playwright."
-        else:
-            notes += " (Playwright PNG rendering was skipped or failed; HTML and SVG previews are ready)."
-    else:
-        notes += " (Playwright PNG rendering is disabled; view HTML/SVG files in browser)."
-
     return {
         "html_path": str(html_path),
         "svg_path": str(svg_path),
-        "png_path": rendered_png,
-        "notes": notes,
+        "png_path": None,
+        "notes": "Rendered editable HTML and SVG banners.",
     }
 
 
@@ -1125,10 +1274,11 @@ def render_existing_banner_html_file(
     png_path: Optional[Union[str, Path]] = None,
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
-    enable_playwright: bool = True,
+    enable_playwright: bool = False,
     auto_detect_latest: bool = True,
 ) -> Dict[str, Any]:
-    """Render PNG preview from existing banner HTML/SVG, automatically selecting the latest edited file and syncing to banner.html / banner.svg."""
+    """Synchronize latest edited banner HTML/SVG file to banner.html and banner.svg."""
+    del png_path, enable_playwright
     validate_canvas_dimensions(width, height)
     given_path = Path(html_path)
     if not given_path.exists():
@@ -1143,7 +1293,6 @@ def render_existing_banner_html_file(
     directory = source_path.parent
     main_html_path = directory / "banner.html"
     main_svg_path = directory / "banner.svg"
-    main_png_path = directory / "banner.png"
 
     # Synchronize latest HTML to banner.html
     html_source: Optional[Path] = None
@@ -1185,29 +1334,6 @@ def render_existing_banner_html_file(
         except Exception as exc:
             logger.warning(f"Failed to sync {svg_source} to {main_svg_path}: {exc}")
 
-    output_png_path = (
-        Path(png_path) if png_path is not None else source_path.with_suffix(".png")
-    )
-
-    rendered_png: Optional[str] = None
-    notes = f"Loaded banner file: {source_path.name}"
-
-    if enable_playwright:
-        success = _render_file_to_png(source_path, output_png_path, width=width, height=height)
-        if success:
-            rendered_png = str(output_png_path)
-            # Sync to main banner.png as well
-            if output_png_path.resolve() != main_png_path.resolve():
-                try:
-                    shutil.copy2(output_png_path, main_png_path)
-                except Exception:
-                    pass
-            notes = f"Rendered PNG preview from latest modified {source_path.suffix.upper()} ({source_path.name}) via Playwright."
-        else:
-            notes = "Playwright rendering failed or browser was unavailable."
-    else:
-        notes = "Playwright rendering is disabled."
-
     # Identify companion HTML and SVG files for return dict
     html_target = main_html_path if main_html_path.is_file() else source_path
     svg_target = main_svg_path if main_svg_path.is_file() else (source_path if source_path.suffix.lower() == ".svg" else None)
@@ -1217,8 +1343,8 @@ def render_existing_banner_html_file(
         "source_type": source_path.suffix.lstrip(".").lower(),
         "html_path": str(html_target),
         "svg_path": str(svg_target) if svg_target else None,
-        "png_path": rendered_png,
-        "notes": notes,
+        "png_path": None,
+        "notes": f"Synchronized latest modified {source_path.suffix.upper()} ({source_path.name}).",
     }
 
 

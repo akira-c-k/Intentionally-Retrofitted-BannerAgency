@@ -26,7 +26,6 @@ from src.config import (
     GRAPH_OUTPUT_DIR,
     LLM_API_KEY,
     LLM_MODEL,
-    is_playwright_enabled_by_default,
 )
 
 from agents.agent import Agent, AgentToolStreamEvent
@@ -360,7 +359,6 @@ def _handle_render_action(
     output: BannerCreationOutput,
     width: int,
     height: int,
-    enable_playwright: bool,
 ) -> None:
     parts = action.split(maxsplit=1)
     file_override = parts[1].strip() if len(parts) > 1 else None
@@ -377,7 +375,6 @@ def _handle_render_action(
         html_path=target_path,
         width=width,
         height=height,
-        enable_playwright=enable_playwright,
     )
     print(f"\n[Re-render Preview Updated]")
     source_file_path = render_result.get("source_file", render_result["html_path"])
@@ -385,8 +382,6 @@ def _handle_render_action(
     print(f"  HTML:            {render_result['html_path']}")
     if render_result.get("svg_path"):
         print(f"  SVG:             {render_result['svg_path']}")
-    if render_result.get("png_path"):
-        print(f"  PNG preview:     {render_result['png_path']}")
     print(f"  Notes:           {render_result.get('notes')}\n")
 
 
@@ -509,10 +504,6 @@ def _print_banner_creation_output(output: BannerCreationOutput) -> None:
     print(f"  - HTML: {output.developer.html_path}")
     if output.developer.svg_path:
         print(f"  - SVG:  {output.developer.svg_path}")
-    if output.developer.png_path:
-        print(f"  - PNG:  {output.developer.png_path}")
-    else:
-        print("  - PNG:  (Disabled or skipped)")
     print(f"  - Notes: {output.developer.notes}")
     print("=====================================================\n")
 
@@ -525,7 +516,6 @@ async def run_banner_pipeline(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     notes: str | None = None,
-    enable_playwright: bool = False,
     interactive: bool = True,
 ) -> BannerCreationOutput:
     if resume_target:
@@ -561,13 +551,10 @@ async def run_banner_pipeline(
 
     reviewer_feedback: str | None = None
 
-    # Set environment variable for tools
-    os.environ["ENABLE_PLAYWRIGHT_RENDER"] = "true" if enable_playwright else "false"
-
     if resume_target and interactive and final_output is not None:
         while True:
             action = input(
-                "Review action for resumed banner [Comment (request revision) / Render (re-render) / OK (approve) / Exit]: "
+                "Review action for resumed banner [Comment (request revision) / Render (sync latest HTML/SVG) / OK (approve) / Exit]: "
             ).strip().lower()
             if action in {"ok", "approve"}:
                 print(f"Banner approved! HTML available at: {final_output.developer.html_path}")
@@ -580,7 +567,7 @@ async def run_banner_pipeline(
                 return final_output
 
             if action in {"render", "re-render", "r"} or action.startswith(("render ", "re-render ")):
-                _handle_render_action(action, final_output, width, height, enable_playwright)
+                _handle_render_action(action, final_output, width, height)
                 previous_summary = _banner_revision_snapshot(final_output)
                 continue
 
@@ -674,7 +661,7 @@ async def run_banner_pipeline(
                     break
 
                 if action in {"render", "re-render", "r"} or action.startswith(("render ", "re-render ")):
-                    _handle_render_action(action, final_output, width, height, enable_playwright)
+                    _handle_render_action(action, final_output, width, height)
                     previous_summary = _banner_revision_snapshot(final_output)
                     continue
 
@@ -708,8 +695,6 @@ def main() -> None:
     parser.add_argument("--width", "-w", type=int, default=DEFAULT_WIDTH, help=f"Banner width (default: {DEFAULT_WIDTH})")
     parser.add_argument("--height", "-H", type=int, default=DEFAULT_HEIGHT, help=f"Banner height (default: {DEFAULT_HEIGHT})")
     parser.add_argument("--notes", "-n", type=str, default=None, help="Additional design notes")
-    parser.add_argument("--render-png", action="store_true", default=None, help="Enable Playwright PNG preview rendering")
-    parser.add_argument("--no-render-png", action="store_false", dest="render_png", help="Disable Playwright PNG preview rendering")
     parser.add_argument("--non-interactive", action="store_true", help="Run once without interactive review loop")
 
     args = parser.parse_args()
@@ -740,18 +725,6 @@ def main() -> None:
     width = args.width
     height = args.height
 
-    # Check Playwright rendering choice
-    enable_playwright = args.render_png
-    if enable_playwright is None:
-        default_pw = is_playwright_enabled_by_default()
-        choice = input(f"Enable Playwright PNG preview rendering? [y/N] (default: {'Y' if default_pw else 'N'}): ").strip().lower()
-        if choice in {"y", "yes"}:
-            enable_playwright = True
-        elif choice in {"n", "no"}:
-            enable_playwright = False
-        else:
-            enable_playwright = default_pw
-
     asyncio.run(
         run_banner_pipeline(
             objective=objective,
@@ -760,7 +733,6 @@ def main() -> None:
             width=width,
             height=height,
             notes=args.notes,
-            enable_playwright=enable_playwright,
             interactive=not args.non_interactive,
         )
     )

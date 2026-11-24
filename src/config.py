@@ -3,21 +3,38 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Load .env file
 load_dotenv()
 
+_ALLOWED_LOCAL_HTTP_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "::1",
+}
+
 
 def validate_llm_base_url(base_url: str) -> str:
-    """Validate LLM_BASE_URL to prevent sending API keys to insecure or non-HTTP endpoints (SEC-008)."""
+    """Validate LLM_BASE_URL using urlparse and exact hostname check (SEC-008, SEC-011)."""
     cleaned = base_url.strip()
-    if cleaned.startswith("https://"):
+    if not cleaned:
+        raise ValueError("LLM_BASE_URL cannot be empty")
+    parsed = urlparse(cleaned)
+    scheme = (parsed.scheme or "").lower()
+    hostname = (parsed.hostname or "").lower()
+
+    if not hostname or parsed.username or parsed.password:
+        raise ValueError(f"Invalid LLM_BASE_URL '{cleaned}': missing hostname or contains embedded credentials.")
+
+    if scheme == "https":
         return cleaned
-    if cleaned.startswith(("http://localhost", "http://127.0.0.1", "http://[::1]")):
+    if scheme == "http" and hostname in _ALLOWED_LOCAL_HTTP_HOSTS:
         return cleaned
+
     raise ValueError(
-        f"Invalid or insecure LLM_BASE_URL '{cleaned}': must use https:// (or http://localhost for local models)."
+        f"Invalid or insecure LLM_BASE_URL '{cleaned}': must use https:// (or http:// with exact host in {sorted(_ALLOWED_LOCAL_HTTP_HOSTS)})."
     )
 
 
@@ -108,12 +125,40 @@ MAX_ASSET_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_FOREGROUND_ELEMENTS = 50
 
 
-# Playwright configuration
-# Can be enabled/disabled via environment variable or CLI argument
-def is_playwright_enabled_by_default() -> bool:
-    env_val = os.getenv("ENABLE_PLAYWRIGHT_RENDER", "false").strip().lower()
-    return env_val in {"1", "true", "yes", "on"}
-
-
 # Supported image extensions for assets
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".svg")
+
+# Explicit allowlist of loadable SVG assets relative to ASSETS_DIR (SEC-009)
+ALLOWED_SVG_ASSETS: tuple[str, ...] = (
+    # Backgrounds (10)
+    "backgrounds/autumn_harvest_bg.svg",
+    "backgrounds/clean_minimal_white_bg.svg",
+    "backgrounds/cyber_neon_dark_bg.svg",
+    "backgrounds/luxury_dark_bg.svg",
+    "backgrounds/natural_mint_bg.svg",
+    "backgrounds/spring_sale_bg.svg",
+    "backgrounds/summer_ocean_blue_bg.svg",
+    "backgrounds/tech_blue_bg.svg",
+    "backgrounds/vibrant_pop_yellow_bg.svg",
+    "backgrounds/warm_sunset_bg.svg",
+    # Logos (9)
+    "logos/brand_logo_circle.svg",
+    "logos/brand_logo_cube.svg",
+    "logos/brand_logo_diamond.svg",
+    "logos/brand_logo_flame.svg",
+    "logos/brand_logo_hex.svg",
+    "logos/brand_logo_infinity.svg",
+    "logos/brand_logo_leaf.svg",
+    "logos/brand_logo_shield.svg",
+    "logos/brand_logo_wing.svg",
+    # Decorations (9)
+    "decorations/discount_burst_badge.svg",
+    "decorations/free_shipping_truck_badge.svg",
+    "decorations/guarantee_trust_badge.svg",
+    "decorations/hot_flame_badge.svg",
+    "decorations/limited_time_clock_badge.svg",
+    "decorations/new_tag_ribbon.svg",
+    "decorations/point_back_coin_badge.svg",
+    "decorations/ribbon_badge.svg",
+    "decorations/special_crown_badge.svg",
+)

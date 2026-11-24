@@ -8,6 +8,8 @@ from pydantic import Field
 from agents import function_tool
 
 from src.config import (
+    ALLOWED_SVG_ASSETS,
+    ASSETS_DIR,
     BACKGROUND_ASSET_DIR,
     DECORATION_ASSET_DIR,
     IMAGE_EXTENSIONS,
@@ -22,6 +24,16 @@ def _asset_dir(kind: BannerAssetKind) -> Path:
     if kind == "decoration":
         return DECORATION_ASSET_DIR
     return LOGO_ASSET_DIR
+
+
+def _is_allowed_svg_asset(asset_path: Path) -> bool:
+    if asset_path.suffix.lower() != ".svg":
+        return True
+    try:
+        rel_posix = asset_path.resolve().relative_to(ASSETS_DIR.resolve()).as_posix()
+        return rel_posix in ALLOWED_SVG_ASSETS
+    except ValueError:
+        return False
 
 
 def load_banner_asset_metadata(
@@ -48,7 +60,7 @@ def load_banner_asset_metadata(
             ),
             None,
         )
-        if asset_path is None:
+        if asset_path is None or not _is_allowed_svg_asset(asset_path):
             continue
 
         try:
